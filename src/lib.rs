@@ -5,6 +5,8 @@
 #![feature(try_from, nonzero)]
 extern crate core;
 extern crate itertools;
+#[cfg(feature="serde")]
+extern crate serde;
 
 use std::iter::{FromIterator, DoubleEndedIterator};
 use std::{mem, slice, vec};
@@ -13,6 +15,8 @@ use std::ops::{Index, IndexMut};
 use std::fmt::{self, Debug, Formatter};
 
 pub mod compact;
+#[cfg(feature="serde")]
+mod serialization;
 mod utils;
 mod integer_id;
 

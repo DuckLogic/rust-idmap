@@ -2,6 +2,12 @@
 extern crate idmap;
 #[macro_use]
 extern crate idmap_derive;
+extern crate serde;
+extern crate serde_test;
+#[macro_use]
+extern crate serde_derive;
+
+use serde_test::{Token, assert_tokens};
 
 use idmap::IdMap;
 use KnownState::*;
@@ -48,6 +54,7 @@ fn test_index() {
 
 #[test]
 #[should_panic]
+#[allow(no_effect)] // It's supposed to panic
 fn test_index_nonexistent() {
     let map = important_cities();
 
@@ -101,7 +108,7 @@ fn important_cities() -> IdMap<KnownState, &'static str> {
         NewYork => "New York City"
     }
 }
-#[derive(IntegerId, Debug, Copy, Clone, PartialEq)]
+#[derive(IntegerId, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 enum KnownState {
     Arizona,
     California,
@@ -132,6 +139,14 @@ impl KnownState {
             NorthDakota => "Fargo"
         }
     }
+    fn variant_name(&self) -> &'static str {
+        match *self {
+            Arizona => "Arizona",
+            California => "California",
+            NewYork => "NewYork",
+            _ => unimplemented!()
+        }
+    }
     fn check_missing(self, target: &IdMap<KnownState, &'static str>) {
         assert_eq!(target.get(self), None, "Expected no city for {:?}", self);
     }
@@ -151,5 +166,42 @@ fn test_wrapper() {
     assert_eq!(data.get(ExampleWrapper(76)), None)
 }
 
+#[test]
+fn test_struct_wrapper() {
+    let data = idmap! {
+        ExampleStructWrapper::new(32) => "abc",
+        ExampleStructWrapper::new(42) => "life"
+    };
+    assert_eq!(data[ExampleStructWrapper::new(32)], "abc");
+    assert_eq!(data[ExampleStructWrapper::new(42)], "life");
+    assert_eq!(data.get(ExampleStructWrapper::new(76)), None)
+}
+
 #[derive(IntegerId, Debug, PartialEq)]
 struct ExampleWrapper(u16);
+#[derive(IntegerId, Debug, PartialEq)]
+struct ExampleStructWrapper {
+    value: u16
+}
+impl ExampleStructWrapper {
+    #[inline]
+    fn new(value: u16) -> Self {
+        ExampleStructWrapper { value }
+    }
+}
+
+#[test]
+fn test_serde() {
+    let mut expected_tokens = vec![Token::Map { len: Some(3) }];
+    for state in IMPORTANT_STATES {
+        expected_tokens.extend(&[
+            Token::Enum { name: "KnownState" },
+            Token::Str(state.variant_name()),
+            Token::Unit,
+            Token::BorrowedStr(state.city())
+        ]);
+    }
+    expected_tokens.push(Token::MapEnd);
+    assert_tokens(&important_cities(), &expected_tokens);
+}
+
