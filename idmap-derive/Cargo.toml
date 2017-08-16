@@ -1,0 +1,17 @@
+[package]
+name = "idmap-derive"
+version = "0.1.0"
+authors = ["Techcable <Techcable@techcable.net>"]
+description = "Automaticatically derives IntegerId for the `idmap` crate"
+repository = "https://github.com/Techcable/rust-idmap"
+
+readme = "../README.md"
+license = "MIT"
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "^0.11.11"
+quote = "^0.3.15"

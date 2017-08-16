@@ -1,0 +1,21 @@
+[package]
+name = "idmap"
+version = "0.1.0"
+authors = ["Techcable <Techcable@techcable.net>"]
+description = "Efficient maps of integer id keys to values, backed by an underlying `Vec`"
+repository = "https://github.com/Techcable/rust-idmap"
+
+readme = "README.md"
+license = "MIT"
+
+[dependencies]
+itertools = "^0.6.1"
+
+[dependencies.idmap-derive]
+path = "idmap-derive"
+version = "0.1.0"
+
+[features]
+default = ["compact"]
+# Enables compact id maps
+compact = []
