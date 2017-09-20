@@ -1,6 +1,6 @@
 [package]
 name = "idmap"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Techcable <Techcable@techcable.net>"]
 description = "Efficient maps of integer id keys to values, backed by an underlying `Vec`"
 repository = "https://github.com/Techcable/rust-idmap"
@@ -11,6 +11,8 @@ license = "MIT"
 [dependencies]
 itertools = "^0.6.1"
 serde = { version = "^1.0.11", optional = true }
+# Allows implementing IntegerId for graphid
+petgraph = { version = "^0.4.7", optional = true }
 
 [dev-dependencies]
 # Testing serde
@@ -22,6 +24,14 @@ path = "idmap-derive"
 version = "0.1.0"
 
 [features]
-default = ["compact", "serde"]
+default = ["compact", "serde", "nonzero"]
 # Enables compact id maps
 compact = []
+# Implement IntegerId for NonZero<T>, which is enabled by default
+nonzero = []
+
+[package.metadata.docs.rs]
+features = ["compact", "serde", "petgraph"]
+# We need to disable support for NonZero since their nightly does't support it
+no-default-features = true
+

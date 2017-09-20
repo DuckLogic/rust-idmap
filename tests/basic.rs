@@ -2,6 +2,7 @@
 extern crate idmap;
 #[macro_use]
 extern crate idmap_derive;
+#[allow(unused_extern_crates)]
 extern crate serde;
 extern crate serde_test;
 #[macro_use]
@@ -15,8 +16,9 @@ use KnownState::*;
 #[test]
 fn test_remove() {
     let mut m = important_cities();
+    assert_eq!(m.remove(NewMexico), None);
     for state in IMPORTANT_STATES {
-        assert_eq!(state.city(), m.remove(state).unwrap());
+        assert_eq!(Some(state.city()), m.remove(state), "{:#?}", m.raw_debug());
     }
     assert_eq!(m.len(), 0);
     assert_eq!(m.remove(NewMexico), None);
@@ -53,8 +55,30 @@ fn test_index() {
 }
 
 #[test]
+fn test_insertion_order() {
+    let entries = IMPORTANT_STATES.iter()
+        .map(|state| (*state, state.city()))
+        .collect::<Vec<_>>();
+    let reversed_entries = entries.iter().rev().cloned().collect::<Vec<_>>();
+    let map = entries.iter()
+        .cloned()
+        .collect::<IdMap<KnownState, &'static str>>();
+    let actual_entries = map.iter()
+        .map(|(&state, &city)| (state, city))
+        .collect::<Vec<_>>();
+    assert_eq!(actual_entries, entries);
+    let reversed_map = reversed_entries.iter()
+        .cloned()
+        .collect::<IdMap<KnownState, &'static str>>();
+    let actually_reversed = reversed_map.iter()
+        .map(|(&state, &city)| (state, city))
+        .collect::<Vec<_>>();
+    assert_eq!(actually_reversed, reversed_entries);
+}
+
+#[test]
 #[should_panic]
-#[allow(no_effect)] // It's supposed to panic
+#[cfg_attr(feature = "cargo-clippy", allow(no_effect))] // It's supposed to panic
 fn test_index_nonexistent() {
     let map = important_cities();
 
@@ -77,12 +101,16 @@ fn test_extend_ref() {
     let important = important_cities();
     let mut all = IdMap::new();
     all.insert(NewMexico, "Albuquerque");
+    all.insert(California, "Cake");
     all.insert(NorthDakota, "Fargo");
 
     all.extend(&important);
 
     assert_eq!(all.len(), 5);
-    assert_eq!(*all.keys().next().unwrap(), NewMexico);
+    // Updates must preserve order
+    assert_eq!(all.iter().nth(1).unwrap(), (&California, &California.city()));
+    // Order of original, unchanged values must be preserved
+    assert_eq!(all.iter().nth(2).unwrap(), (&NorthDakota, &"Fargo"));
     check_cities(ALL_STATES, &all);
 }
 
@@ -102,10 +130,11 @@ fn test_retain() {
 /// List the biggest cities in each state except for `NewMexico` and `NorthDakota`,
 /// intentionally excluding them to provide a better test case.
 fn important_cities() -> IdMap<KnownState, &'static str> {
+    // NOTE: Intentionally out of declared order to try and mess things up
     idmap! {
         Arizona => "Phoenix",
-        California => "Los Angeles",
-        NewYork => "New York City"
+        NewYork => "New York City",
+        California => "Los Angeles"
     }
 }
 #[derive(IntegerId, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -127,7 +156,9 @@ fn check_cities(states: &[KnownState], target: &IdMap<KnownState, &'static str>)
     }
 }
 static ALL_STATES: &[KnownState] = &[Arizona, California, NewMexico, NewYork, NorthDakota];
-static IMPORTANT_STATES: &[KnownState] = &[Arizona, California, NewYork];
+// NOTE: Intentionally out of declared order to try and mess things up
+
+static IMPORTANT_STATES: &[KnownState] = &[Arizona, NewYork, California];
 static TINY_STATES: &[KnownState] = &[NorthDakota, NewMexico];
 impl KnownState {
     fn city(&self) -> &'static str {
@@ -137,14 +168,6 @@ impl KnownState {
             NewMexico => "Albuquerque",
             NewYork => "New York City",
             NorthDakota => "Fargo"
-        }
-    }
-    fn variant_name(&self) -> &'static str {
-        match *self {
-            Arizona => "Arizona",
-            California => "California",
-            NewYork => "NewYork",
-            _ => unimplemented!()
         }
     }
     fn check_missing(self, target: &IdMap<KnownState, &'static str>) {
@@ -192,16 +215,23 @@ impl ExampleStructWrapper {
 
 #[test]
 fn test_serde() {
-    let mut expected_tokens = vec![Token::Map { len: Some(3) }];
-    for state in IMPORTANT_STATES {
-        expected_tokens.extend(&[
-            Token::Enum { name: "KnownState" },
-            Token::Str(state.variant_name()),
-            Token::Unit,
-            Token::BorrowedStr(state.city())
+    macro_rules! state_tokens {
+        ($len:expr, $($state:expr => $city:expr),*) => (&[
+            Token::Map { len: Some($len) },
+            $(
+                Token::Enum { name: "KnownState" },
+                Token::Str(stringify!($state)),
+                Token::Unit,
+                Token::BorrowedStr($city),
+            )*
+            Token::MapEnd
         ]);
     }
-    expected_tokens.push(Token::MapEnd);
-    assert_tokens(&important_cities(), &expected_tokens);
+    const EXPECTED_TOKENS: &[Token] = state_tokens!(3,
+        Arizona => "Phoenix",
+        NewYork => "New York City",
+        California => "Los Angeles"
+    );
+    assert_tokens(&important_cities(), EXPECTED_TOKENS);
 }
 

@@ -17,6 +17,7 @@ pub trait IntegerId: PartialEq + Debug {
     /// Return the 32-bit unique id of this value, panicking on overflow
     fn id32(&self) -> u32;
 }
+#[cfg(feature = "nonzero")] // Hidden behind a (default) feature flag for docs.rs
 impl<T: IntegerId + Zeroable + Copy> IntegerId for NonZero<T> {
     type Storage = T::Storage;
     #[inline]
@@ -48,6 +49,7 @@ macro_rules! primitive_id {
             #[inline(always)]
             fn into_storage(self) {}
             #[inline(always)]
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
@@ -79,6 +81,7 @@ macro_rules! primitive_id {
             #[inline(always)]
             fn into_storage(self) {}
             #[inline(always)]
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
@@ -104,10 +107,12 @@ macro_rules! primitive_id {
             #[inline(always)]
             fn into_storage(self) {}
             #[inline(always)]
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
             #[inline(always)]
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id32(&self) -> u32 {
                 *self as u32
             }
