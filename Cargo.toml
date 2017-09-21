@@ -1,6 +1,6 @@
 [package]
 name = "idmap"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Techcable <Techcable@techcable.net>"]
 description = "Efficient maps of integer id keys to values, backed by an underlying `Vec`"
 repository = "https://github.com/Techcable/rust-idmap"
@@ -29,7 +29,7 @@ default = ["nonzero"]
 nonzero = []
 
 [package.metadata.docs.rs]
-features = ["compact", "serde", "petgraph"]
+features = ["serde", "petgraph"]
 # We need to disable support for NonZero since their nightly does't support it
 no-default-features = true
 

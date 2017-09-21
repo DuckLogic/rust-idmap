@@ -1,4 +1,4 @@
-rust-idmap
+rust-idmap [![Crates.io](https://img.shields.io/crates/v/idmap.svg)](https://crates.io/crates/idmap) [![Documentation](https://docs.rs/idmap/badge.svg)](https://docs.rs/idmap)
 ==========
 Efficient maps of integer id keys to values, backed by an underlying `Vec`.
 
