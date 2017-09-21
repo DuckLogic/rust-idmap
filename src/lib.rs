@@ -2,7 +2,7 @@
 //! However, unless a `CompactIdMap` is used, space requirements are O(n) the largest key.
 //! Any type that implements `IntegerId` can be used for the key,
 //! but no storage is wasted if the key can be represented from the id.
-#![feature(try_from, nonzero, trusted_len, fused, const_max_value, core_intrinsics)]
+#![feature(try_from, nonzero, trusted_len, fused, const_max_value, core_intrinsics, const_fn)]
 extern crate core;
 #[cfg(feature="serde")]
 extern crate serde;
