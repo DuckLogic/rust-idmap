@@ -9,7 +9,6 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-itertools = "^0.6.1"
 serde = { version = "^1.0.11", optional = true }
 # Allows implementing IntegerId for graphid
 petgraph = { version = "^0.4.7", optional = true }
@@ -18,15 +17,14 @@ petgraph = { version = "^0.4.7", optional = true }
 # Testing serde
 serde_test = "^1.0.11"
 serde_derive = "^1.0.11"
+itertools = "^0.6.1"
 
 [dependencies.idmap-derive]
 path = "idmap-derive"
 version = "0.1.0"
 
 [features]
-default = ["compact", "serde", "nonzero"]
-# Enables compact id maps
-compact = []
+default = ["nonzero"]
 # Implement IntegerId for NonZero<T>, which is enabled by default
 nonzero = []
 

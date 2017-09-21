@@ -6,6 +6,8 @@
 extern crate core;
 #[cfg(feature="serde")]
 extern crate serde;
+#[cfg(feature = "petgraph")]
+extern crate petgraph;
 
 use std::marker::PhantomData;
 use std::iter::{self, FromIterator};

@@ -161,3 +161,29 @@ macro_rules! generic_deref_id {
 generic_deref_id!(Rc);
 generic_deref_id!(Box);
 generic_deref_id!(Arc);
+
+#[cfg(feature = "petgraph")]
+impl<T> IntegerId for ::petgraph::graph::NodeIndex<T>
+    where T: ::petgraph::graph::IndexType + IntegerId {
+    type Storage = T::Storage;
+
+    #[inline]
+    fn from_storage(storage: T::Storage, id: u64) -> Self {
+        Self::from(T::from_storage(storage, id))
+    }
+
+    #[inline]
+    fn into_storage(self) -> Self::Storage {
+        T::new(self.index()).into_storage()
+    }
+
+    #[inline]
+    fn id(&self) -> u64 {
+        T::new(self.index()).id()
+    }
+
+    #[inline]
+    fn id32(&self) -> u32 {
+        T::new(self.index()).id32()
+    }
+}
