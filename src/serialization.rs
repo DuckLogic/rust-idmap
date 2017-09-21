@@ -7,12 +7,12 @@ use serde::de::{Deserialize, Deserializer, Visitor, MapAccess};
 use serde::ser::{SerializeMap, Serializer, Serialize};
 
 use super::{IdMap, IntegerId};
-use super::table::IdTable;
+use super::table::EntryTable;
 
-struct IdMapVisitor<K: IntegerId, V, T: IdTable<K, V>>(PhantomData<IdMap<K, V, T>>);
+struct IdMapVisitor<K: IntegerId, V, T: EntryTable<K, V>>(PhantomData<IdMap<K, V, T>>);
 
 impl<'de, K, V, T> Visitor<'de> for IdMapVisitor<K, V, T>
-    where K: IntegerId, T: IdTable<K, V>, K: Deserialize<'de>, V: Deserialize<'de> {
+    where K: IntegerId, T: EntryTable<K, V>, K: Deserialize<'de>, V: Deserialize<'de> {
     type Value = IdMap<K, V, T>;
     #[inline]
     fn expecting(&self, f: &mut Formatter) -> fmt::Result {
@@ -30,7 +30,7 @@ impl<'de, K, V, T> Visitor<'de> for IdMapVisitor<K, V, T>
     }
 }
 impl<'de, K, V, T> Deserialize<'de> for IdMap<K, V, T>
-    where K: Deserialize<'de>, T: IdTable<K, V>,
+    where K: Deserialize<'de>, T: EntryTable<K, V>,
           K: IntegerId, V: Deserialize<'de> {
     #[inline]
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -38,7 +38,7 @@ impl<'de, K, V, T> Deserialize<'de> for IdMap<K, V, T>
     }
 }
 impl<K, V, T> Serialize for IdMap<K, V, T>
-    where K: IntegerId, K: Serialize, V: Serialize, T: IdTable<K, V> {
+    where K: IntegerId, K: Serialize, V: Serialize, T: EntryTable<K, V> {
     #[inline]
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(self.len()))?;
