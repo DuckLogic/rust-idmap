@@ -62,7 +62,6 @@ pub type OrderedIdMap<K, V> = IdMap<K, V, DenseEntryTable<K, V>>;
 /// that preserves insertion order and saves some space for missing keys.
 /// More details on the possible internal representations
 /// are documented in the `OrderedIdMap` and `DirectIdMap` aliases.
-#[derive(Clone)]
 pub struct IdMap<K: IntegerId, V, T: EntryTable<K, V> = DenseEntryTable<K, V>> {
     entries: T,
     marker: PhantomData<DirectEntryTable<K, V>>
@@ -196,6 +195,15 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
     #[inline]
     pub fn raw_debug(&self) -> RawDebug<K, V, T> where K: Debug, V: Debug {
         RawDebug(self)
+    }
+}
+impl<K, V, T> Clone for IdMap<K, V, T> where K: IntegerId + Clone, V: Clone, T: EntryTable<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        IdMap {
+            entries: self.entries.cloned(),
+            marker: PhantomData
+        }
     }
 }
 /// A wrapper to debug the underlying representation of an `IdMap`

@@ -18,7 +18,7 @@ use super::IntegerId;
 ///
 /// `DenseEntryTable`s need a seperate `IdTable` since entries will be stored densely,
 /// though a `DirectEntryTable` doesn't need one at all.
-pub trait IdTable: Debug {
+pub trait IdTable: Debug + Clone {
     fn new() -> Self;
     fn with_capacity(capacity: usize) -> Self;
     /// Determine the index of the specified key, which may or may not be valid.
@@ -127,7 +127,7 @@ impl<'a, K, V, I> iter::ExactSizeIterator for SafeEntriesMut<'a, K, V, I>
 unsafe impl<'a, K, V, I> iter::TrustedLen for SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OrderedIdTable {
     table: Vec<TableIndex>,
 }
@@ -327,8 +327,9 @@ pub trait EntryTable<K: IntegerId, V>: EntryIterable<K, V> + IntoIterator<Item=(
     fn reserve(&mut self, amount: usize);
     fn raw_debug(&self) -> &Debug where K: Debug, V: Debug;
     fn max_id(&self) -> Option<u64>;
+    fn cloned(&self) -> Self where K: Clone, V: Clone;
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DenseEntryTable<K: IntegerId, V, T: IdTable = OrderedIdTable> {
     entries: Vec<(K, V)>,
     table: T
@@ -459,6 +460,10 @@ impl<K: IntegerId, V, T: IdTable> EntryTable<K, V> for DenseEntryTable<K, V, T> 
          */
         self.entries.iter().map(|&(ref key, _)| key.id()).max()
     }
+    #[inline]
+    fn cloned(&self) -> Self where K: Clone, V: Clone {
+        self.clone()
+    }
 }
 unsafe impl<K: IntegerId, V, T: IdTable> EntryIterable<K, V> for DenseEntryTable<K, V, T> {
     type Iter = UncheckedDenseEntryIter<K, V>;
@@ -517,7 +522,7 @@ impl<K: IntegerId, V> iter::FusedIterator for UncheckedDenseEntryIter<K, V> {}
 impl<K: IntegerId, V> iter::ExactSizeIterator for UncheckedDenseEntryIter<K, V> {}
 unsafe impl<K: IntegerId, V> iter::TrustedLen for UncheckedDenseEntryIter<K, V> {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DirectEntryTable<K: IntegerId, V> {
     entries: Vec<Option<(K, V)>>,
     count: usize,
@@ -660,6 +665,10 @@ impl<K: IntegerId, V> EntryTable<K, V> for DirectEntryTable<K, V> {
             }
         }
         None
+    }
+    #[inline]
+    fn cloned(&self) -> Self where K: Clone, V: Clone {
+        self.clone()
     }
 }
 unsafe impl<K: IntegerId, V> EntryIterable<K, V> for DirectEntryTable<K, V> {

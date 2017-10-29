@@ -49,6 +49,13 @@ fn test_from_iter() {
 }
 
 #[test]
+fn test_clone() {
+    let original = important_cities();
+    let cloned = original.clone();
+    assert_eq!(original, cloned);
+}
+
+#[test]
 fn test_index() {
     let map = important_cities();
 

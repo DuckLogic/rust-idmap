@@ -55,6 +55,13 @@ fn test_index() {
 }
 
 #[test]
+fn test_clone() {
+    let original = important_cities();
+    let cloned = original.clone();
+    assert_eq!(original, cloned);
+}
+
+#[test]
 fn test_insertion_order() {
     let entries = IMPORTANT_STATES.iter()
         .map(|state| (*state, state.city()))
