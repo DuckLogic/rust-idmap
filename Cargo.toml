@@ -1,6 +1,6 @@
 [package]
 name = "idmap"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Techcable <Techcable@techcable.net>"]
 description = "Efficient maps of integer id keys to values, backed by an underlying `Vec`"
 repository = "https://github.com/Techcable/rust-idmap"
