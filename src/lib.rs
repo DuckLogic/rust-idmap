@@ -123,6 +123,10 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
         self.entries.max_id()
     }
     #[inline]
+    pub fn contains_key<Q: Borrow<K>>(&self, key: Q) -> bool {
+        self.get(key).is_some()
+    }
+    #[inline]
     pub fn get<Q: Borrow<K>>(&self, key: Q) -> Option<&V> {
         let key = key.borrow();
         self.entries.get(key)
