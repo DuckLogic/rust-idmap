@@ -7,9 +7,7 @@ use core::nonzero::{NonZero, Zeroable};
 
 /// A type that can be uniquely identified by a 64 bit integer id
 pub trait IntegerId: PartialEq + Debug {
-    type Storage;
-    fn from_storage(storage: Self::Storage, id: u64) -> Self;
-    fn into_storage(self) -> Self::Storage;
+    fn from_id(id: u64) -> Self;
     /// Return the unique id of this value.
     /// If two values are equal, they _must_ have the same id,
     /// and if two values aren't equal, they _must_ have different ids.
@@ -19,15 +17,10 @@ pub trait IntegerId: PartialEq + Debug {
 }
 #[cfg(feature = "nonzero")] // Hidden behind a (default) feature flag for docs.rs
 impl<T: IntegerId + Zeroable + Copy> IntegerId for NonZero<T> {
-    type Storage = T::Storage;
     #[inline]
-    fn from_storage(storage: T::Storage, id: u64) -> Self {
-        let value = T::from_storage(storage, id);
+    fn from_id(id: u64) -> Self {
+        let value = T::from_id(id);
         NonZero::new(value).unwrap()
-    }
-    #[inline]
-    fn into_storage(self) -> T::Storage {
-        self.get().into_storage()
     }
     #[inline]
     fn id(&self) -> u64 {
@@ -41,13 +34,10 @@ impl<T: IntegerId + Zeroable + Copy> IntegerId for NonZero<T> {
 macro_rules! primitive_id {
     ($target:ty, fits32 = false, signed = true) => {
         impl IntegerId for $target {
-            type Storage = ();
             #[inline(always)]
-            fn from_storage(_: (), id: u64) -> Self {
+            fn from_id(id: u64) -> Self {
                 id as $target
             }
-            #[inline(always)]
-            fn into_storage(self) {}
             #[inline(always)]
             #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
@@ -73,13 +63,10 @@ macro_rules! primitive_id {
     };
     ($target:ty, fits32 = false, signed = false) => {
         impl IntegerId for $target {
-            type Storage = ();
             #[inline(always)]
-            fn from_storage(_: (), id: u64) -> Self {
+            fn from_id(id: u64) -> Self {
                 id as $target
             }
-            #[inline(always)]
-            fn into_storage(self) {}
             #[inline(always)]
             #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
@@ -98,14 +85,11 @@ macro_rules! primitive_id {
     };
     ($target:ty, fits32 = true) => {
         impl IntegerId for $target {
-            type Storage = ();
             #[inline(always)]
-            fn from_storage(_: (), id: u64) -> Self {
+            fn from_id(id: u64) -> Self {
                 // TODO: Should we have a debug_assert! to check the cast?
                 id as $target
             }
-            #[inline(always)]
-            fn into_storage(self) {}
             #[inline(always)]
             #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
@@ -135,16 +119,11 @@ primitive_id!(i32, fits32 = true);
 primitive_id!(u16, fits32 = true);
 primitive_id!(i16, fits32 = true);
 macro_rules! generic_deref_id {
-    ($target:tt) => {
+    ($target:ident) => {
         impl<T: IntegerId> IntegerId for $target<T> {
-            type Storage = Self;
             #[inline(always)]
-            fn from_storage(storage: Self, _: u64) -> Self {
-                storage
-            }
-            #[inline(always)]
-            fn into_storage(self) -> Self {
-                self
+            fn from_id(id: u64) -> Self {
+                $target::new(T::from_id(id))
             }
             #[inline]
             fn id(&self) -> u64 {
@@ -165,18 +144,10 @@ generic_deref_id!(Arc);
 #[cfg(feature = "petgraph")]
 impl<T> IntegerId for ::petgraph::graph::NodeIndex<T>
     where T: ::petgraph::graph::IndexType + IntegerId {
-    type Storage = T::Storage;
-
     #[inline]
-    fn from_storage(storage: T::Storage, id: u64) -> Self {
-        Self::from(T::from_storage(storage, id))
+    fn from_id(id: u64) -> Self {
+        Self::from(T::from_id(id))
     }
-
-    #[inline]
-    fn into_storage(self) -> Self::Storage {
-        T::new(self.index()).into_storage()
-    }
-
     #[inline]
     fn id(&self) -> u64 {
         T::new(self.index()).id()

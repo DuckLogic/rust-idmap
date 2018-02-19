@@ -3,10 +3,10 @@ use std::marker::PhantomData;
 
 
 use std::fmt::{self, Formatter};
-use serde::de::{Deserialize, Deserializer, Visitor, MapAccess};
-use serde::ser::{SerializeMap, Serializer, Serialize};
+use serde::de::{Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
+use serde::ser::{SerializeMap, SerializeSeq, Serializer, Serialize};
 
-use super::{IdMap, IntegerId};
+use super::{IdMap, IdSet, IntegerId};
 use super::table::EntryTable;
 
 struct IdMapVisitor<K: IntegerId, V, T: EntryTable<K, V>>(PhantomData<IdMap<K, V, T>>);
@@ -48,3 +48,43 @@ impl<K, V, T> Serialize for IdMap<K, V, T>
         map.end()
     }   
 }
+
+struct IdSetVisitor<T: IntegerId>(PhantomData<IdSet<T>>);
+
+impl<'de, T> Visitor<'de> for IdSetVisitor<T> where T: IntegerId + Deserialize<'de> {
+    type Value = IdSet<T>;
+    #[inline]
+    fn expecting(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str("an IdSet")
+    }
+    #[inline]
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where
+        A: SeqAccess<'de>, {
+        let mut result = IdSet::with_capacity(
+            seq.size_hint().unwrap_or(0)
+        );
+        while let Some(element) = seq.next_element::<T>()? {
+            result.insert(element);
+        }
+        Ok(result)
+    }
+}
+impl<'de, T> Deserialize<'de> for IdSet<T>
+    where T: IntegerId + Deserialize<'de> {
+    #[inline]
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_seq(IdSetVisitor(PhantomData))
+    }
+}
+impl<T> Serialize for IdSet<T>
+    where T: IntegerId + Serialize {
+    #[inline]
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for value in self.iter() {
+            seq.serialize_element(&value)?;
+        }
+        seq.end()
+    }
+}
+

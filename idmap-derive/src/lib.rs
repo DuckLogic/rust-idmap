@@ -41,15 +41,10 @@ fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
                     };
                     quote! {
                         impl ::idmap::IntegerId for #name {
-                            type Storage = <#field_type as ::idmap::IntegerId>::Storage;
                             #[inline(always)]
-                            fn from_storage(storage: Self::Storage, id: u64) -> Self {
-                                let value = <#field_type as ::idmap::IntegerId>::from_storage(storage, id);
+                            fn from_id(id: u64) -> Self {
+                                let value = <#field_type as ::idmap::IntegerId>::from_id(id);
                                 #constructor
-                            }
-                            #[inline(always)]
-                            fn into_storage(self) -> Self::Storage {
-                                <#field_type as ::idmap::IntegerId>::into_storage(self.#field_name)
                             }
                             #[inline(always)]
                             fn id(&self) -> u64 {
@@ -87,16 +82,13 @@ fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
             }).collect();
             quote! {
                 impl ::idmap::IntegerId for #name {
-                    type Storage = ();
                     #[inline]
-                    fn from_storage(_: (), id: u64) -> Self {
+                    fn from_id(id: u64) -> Self {
                         match id {
-                            #(variants,)*
+                            #(#variants,)*
                             _ => ::idmap::_invalid_id(id)
                         }
                     }
-                    #[inline(always)]
-                    fn into_storage(self) {}
                     #[inline(always)]
                     fn id(&self) -> u64 {
                         *self as u64

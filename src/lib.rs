@@ -8,6 +8,7 @@ extern crate core;
 extern crate serde;
 #[cfg(feature = "petgraph")]
 extern crate petgraph;
+extern crate fixedbitset;
 
 use std::marker::PhantomData;
 use std::iter::{self, FromIterator};
@@ -15,12 +16,14 @@ use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 use std::fmt::{self, Debug, Formatter};
 
+pub mod set;
 pub mod table;
 #[cfg(feature="serde")]
 mod serialization;
 mod utils;
 mod integer_id;
 
+pub use set::IdSet;
 pub use integer_id::IntegerId;
 use table::{
     EntryTable, EntryIterable, DenseEntryTable,
@@ -233,7 +236,7 @@ impl<K, V1, T1, V2, T2> PartialEq<IdMap<K, V2, T2>> for IdMap<K, V1, T1>
         })
     }
 }
-/// Creates an `IDMap` from a list of key-value pairs
+/// Creates an `IdMap` from a list of key-value pairs
 /// 
 /// ## Example
 /// ````
@@ -256,6 +259,32 @@ macro_rules! idmap {
         {
             let entries = vec![$(($key, $value)),*];
             let mut result = $crate::IdMap::with_capacity(entries.len());
+            result.extend(entries);
+            result
+        }
+    };
+}
+
+/// Creates an `IdSet` from a list of elements
+///
+/// ## Example
+/// ````
+/// #[macro_use] extern crate idmap;
+/// # fn main() {
+/// let set = idset![1, 25];
+/// assert_eq!(set[1], true);
+/// assert_eq!(set[25], true);
+/// assert_eq!(set[26], false);
+/// // 1 is the first key
+/// assert_eq!(set.iter().next(), Some(1));
+/// # }
+/// ````
+#[macro_export]
+macro_rules! idset {
+    ($($element:expr),*) => {
+        {
+            let entries = vec![$($element),*];
+            let mut result = $crate::IdSet::with_capacity(entries.len());
             result.extend(entries);
             result
         }
