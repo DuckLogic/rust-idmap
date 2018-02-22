@@ -29,6 +29,8 @@ impl<T: IntegerId> IdSet<T> {
             marker: PhantomData
         }
     }
+    /// Inserts the specified element into the set,
+    /// returning `true` if it was already in the set and `false` if it wasn't.
     #[inline]
     pub fn insert<Q: Borrow<T>>(&mut self, value: Q) -> bool {
         let value = value.borrow();
@@ -52,6 +54,8 @@ impl<T: IntegerId> IdSet<T> {
         self.len += 1
 
     }
+    /// Remove the specified value from the set if it is present,
+    /// returning whether or not it was present.
     #[inline]
     pub fn remove<Q: Borrow<T>>(&mut self, value: Q) -> bool {
         let value = value.borrow();
@@ -63,6 +67,7 @@ impl<T: IntegerId> IdSet<T> {
             false
         }
     }
+    /// Check if this set contains the specified value
     #[inline]
     pub fn contains<Q: Borrow<T>>(&self, value: Q) -> bool {
         let value = value.borrow();

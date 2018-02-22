@@ -20,6 +20,8 @@ pub mod set;
 pub mod table;
 #[cfg(feature="serde")]
 mod serialization;
+#[cfg(feature="petgraph")]
+mod graph;
 mod utils;
 mod integer_id;
 
