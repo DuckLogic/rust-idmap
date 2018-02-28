@@ -138,6 +138,16 @@ fn test_struct_wrapper() {
     assert_eq!(data[ExampleStructWrapper::new(76)], false)
 }
 
+#[test]
+fn test_insert_expand() {
+    let mut data = idset!(0);
+    assert_eq!(data.insert(0), true);
+    assert_eq!(data.insert(15), false);
+    assert_eq!(data.insert(512), false);
+    assert_eq!(data.insert(15), true);
+    assert_eq!(data.insert(512), true);
+}
+
 #[derive(IntegerId, Debug, PartialEq)]
 struct ExampleWrapper(u16);
 #[derive(IntegerId, Debug, PartialEq)]

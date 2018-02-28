@@ -41,7 +41,7 @@ impl<T: IntegerId> IdSet<T> {
             was_present
         } else {
             self.insert_fallback(id);
-            true
+            false
         }
     }
     #[inline(never)] #[cold]
