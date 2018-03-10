@@ -369,7 +369,23 @@ impl<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V>> OccupiedEntry<'a, K, V, 
     }
     #[inline]
     pub fn value(self) -> &'a mut V {
-         self.map.entries.get_mut(&self.key).unwrap()
+        self.map.entries.get_mut(&self.key).unwrap()
+    }
+    #[inline]
+    pub fn get(&self) -> &V {
+        self.map.entries.get(&self.key).unwrap()
+    }
+    #[inline]
+    pub fn get_mut(&mut self) -> &mut V {
+        self.map.entries.get_mut(&self.key).unwrap()
+    }
+    #[inline]
+    pub fn insert(self, value: V) -> V {
+        self.map.entries.insert(self.key, value).unwrap()
+    }
+    #[inline]
+    pub fn remove(self) -> V {
+        self.map.entries.swap_remove(&self.key).unwrap()
     }
 }
 pub struct VacantEntry<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V> + 'a> {
