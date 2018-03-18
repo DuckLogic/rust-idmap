@@ -2,7 +2,7 @@
 //! However, unless a `CompactIdMap` is used, space requirements are O(n) the largest key.
 //! Any type that implements `IntegerId` can be used for the key,
 //! but no storage is wasted if the key can be represented from the id.
-#![feature(try_from, nonzero, trusted_len, fused, const_max_value, core_intrinsics, const_fn)]
+#![feature(try_from, nonzero, trusted_len, fused, const_max_value, core_intrinsics, const_fn, drain_filter)]
 extern crate core;
 #[cfg(feature="serde")]
 extern crate serde;
@@ -192,7 +192,7 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
     /// assert_eq!(map.into_iter().collect(), vec![(0, 0), (2, 20), (4, 40), (6, 60)]);
     /// ```
     #[inline]
-    pub fn retain<F>(&mut self, func: F) where F: FnMut(&K, &V) -> bool {
+    pub fn retain<F>(&mut self, func: F) where F: FnMut(&K, &mut V) -> bool {
         self.entries.retain(func);
     }
     /// Reserve space for the specified number of additional elements

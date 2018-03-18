@@ -322,7 +322,7 @@ pub trait EntryTable<K: IntegerId, V>: EntryIterable<K, V> + IntoIterator<Item=(
     fn insert_vacant(&mut self, key: K, value: V) -> &mut V;
     fn swap_remove(&mut self, key: &K) -> Option<V>;
     /// Retain the specified entries in the map, returning if any indexes changed
-    fn retain<F>(&mut self, func: F) where F: FnMut(&K, &V) -> bool;
+    fn retain<F>(&mut self, func: F) where F: FnMut(&K, &mut V) -> bool;
     fn clear(&mut self);
     fn reserve(&mut self, amount: usize);
     fn raw_debug(&self) -> &Debug where K: Debug, V: Debug;
@@ -426,10 +426,10 @@ impl<K: IntegerId, V, T: IdTable> EntryTable<K, V> for DenseEntryTable<K, V, T> 
         None
     }
     #[inline]
-    fn retain<F>(&mut self, mut func: F) where F: FnMut(&K, &V) -> bool {
+    fn retain<F>(&mut self, mut func: F) where F: FnMut(&K, &mut V) -> bool {
         let mut changed = false;
-        self.entries.retain(|&(ref key, ref value)| {
-            if func(key, value) {
+        self.entries.drain_filter(|&mut (ref key, ref mut value)| {
+            if !func(key, value) {
                 changed = true;
                 true
             } else {
@@ -629,16 +629,19 @@ impl<K: IntegerId, V> EntryTable<K, V> for DirectEntryTable<K, V> {
         None
     }
     #[inline]
-    fn retain<F>(&mut self, mut func: F) where F: FnMut(&K, &V) -> bool {
-        self.entries.retain(|entry| {
-            if let Some((ref key, ref value)) = *entry {
-                func(key, value)
-            } else {
-                false
+    fn retain<F>(&mut self, mut func: F) where F: FnMut(&K, &mut V) -> bool {
+        let mut removed = 0;
+        for entry in &mut self.entries {
+            if let Some((ref key, ref mut value)) = *entry {
+                if func(key, value) {
+                    removed += 1;
+                    continue
+                }
             }
-        });
-        // Check the entries again to correct the count
-        self.count = self.entries.iter().filter(|s| s.is_some()).count();
+            *entry = None;
+        }
+        assert!(self.count >= removed);
+        self.count -= removed;
     }
     #[inline]
     fn clear(&mut self) {
