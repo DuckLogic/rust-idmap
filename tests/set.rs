@@ -93,6 +93,20 @@ fn test_extend_ref() {
     check_cities(ALL_STATES, &all);
 }
 
+
+#[test]
+fn test_retain() {
+    let mut set = important_states();
+    set.retain(|&state| match state {
+        NewYork => false, // New york city is too big!
+        California | Arizona => true,
+        _ => unreachable!(),
+    });
+    assert_eq!(set.len(), 2);
+    check_cities(&[Arizona, California], &set);
+    check_missing(TINY_STATES, &set);
+}
+
 /// List the biggest cities in each state except for `NewMexico` and `NorthDakota`,
 /// intentionally excluding them to provide a better test case.
 fn important_states() -> IdSet<KnownState> {

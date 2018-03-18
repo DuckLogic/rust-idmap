@@ -94,6 +94,38 @@ impl<T: IntegerId> IdSet<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+    pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut func: F) {
+        let mut removed = 0;
+        for (word_index, word) in self.handle.as_mut_slice().iter_mut().enumerate() {
+            let (updated_word, word_removed) = retain_word(*word, |bit| {
+                let id = (word_index * 32) as u64 + (bit as u64);
+                let key = T::from_id(id);
+                func(&key)
+            });
+            *word = updated_word;
+            removed += word_removed as usize;
+        }
+        assert!(removed <= self.len);
+        self.len -= removed;
+    }
+}
+#[inline]
+fn retain_word<F: FnMut(u32) -> bool>(original_word: u32, mut func: F) -> (u32, u32) {
+    let mut remaining = original_word;
+    let mut result = original_word;
+    let mut removed = 0;
+    while remaining != 0 {
+        let bit = remaining.trailing_zeros();
+        let mask = 1u32 << bit;
+        debug_assert_ne!(result & mask, 0);
+        if !func(bit) {
+            result &= !mask;
+            removed += 1;
+        }
+        remaining &= !mask;
+    }
+    debug_assert!(removed <= 32);
+    (result, removed)
 }
 impl<T: IntegerId> Default for IdSet<T> {
     #[inline]
