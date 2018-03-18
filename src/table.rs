@@ -634,8 +634,9 @@ impl<K: IntegerId, V> EntryTable<K, V> for DirectEntryTable<K, V> {
         for entry in &mut self.entries {
             if let Some((ref key, ref mut value)) = *entry {
                 if func(key, value) {
-                    removed += 1;
                     continue
+                } else {
+                    removed += 1;
                 }
             }
             *entry = None;

@@ -186,10 +186,13 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
     }
     /// Retains only the elements specified by the predicate.
     /// ```
-    /// # use idmap::VecMap;
-    /// let mut map: IdMap<usize> = (0..8).map(|x|(x, x*10)).collect();
+    /// # use idmap::IdMap;
+    /// let mut map: IdMap<usize, usize> = (0..8).map(|x|(x, x*10)).collect();
     /// map.retain(|k, _| k % 2 == 0);
-    /// assert_eq!(map.into_iter().collect(), vec![(0, 0), (2, 20), (4, 40), (6, 60)]);
+    /// assert_eq!(
+    ///     map.into_iter().collect::<Vec<_>>(),
+    ///     vec![(0, 0), (2, 20), (4, 40), (6, 60)]
+    /// );
     /// ```
     #[inline]
     pub fn retain<F>(&mut self, func: F) where F: FnMut(&K, &mut V) -> bool {

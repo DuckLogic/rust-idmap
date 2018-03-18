@@ -129,6 +129,7 @@ fn test_retain() {
         California | Arizona => true,
         _ => unreachable!(),
     });
+    assert_eq!(map.len(), 2);
     check_cities(&[Arizona, California], &map);
     check_missing(TINY_STATES, &map);
 }
