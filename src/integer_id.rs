@@ -1,9 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
-use std::convert::TryFrom;
 use std::fmt::{Debug, Display};
-
-use core::nonzero::{NonZero, Zeroable};
+use std::num::*;
 
 /// A type that can be uniquely identified by a 64 bit integer id
 pub trait IntegerId: PartialEq + Debug {
@@ -15,22 +13,37 @@ pub trait IntegerId: PartialEq + Debug {
     /// Return the 32-bit unique id of this value, panicking on overflow
     fn id32(&self) -> u32;
 }
-#[cfg(feature = "nonzero")] // Hidden behind a (default) feature flag for docs.rs
-impl<T: IntegerId + Zeroable + Copy> IntegerId for NonZero<T> {
-    #[inline]
-    fn from_id(id: u64) -> Self {
-        let value = T::from_id(id);
-        NonZero::new(value).unwrap()
-    }
-    #[inline]
-    fn id(&self) -> u64 {
-        self.get().id()
-    }
-    #[inline]
-    fn id32(&self) -> u32 {
-        self.get().id32()
+macro_rules! nonzero_id {
+    ($target:ident) => {
+        #[cfg(feature = "nonzero")] // Hidden behind a (default) feature flag for docs.rs
+        impl IntegerId for $target {
+            #[inline]
+            fn from_id(id: u64) -> Self {
+                let value = IntegerId::from_id(id);
+                $target::new(value).unwrap()
+            }
+            #[inline]
+            fn id(&self) -> u64 {
+                self.get().id()
+            }
+            #[inline]
+            fn id32(&self) -> u32 {
+                self.get().id32()
+            }
+        }
     }
 }
+nonzero_id!(NonZeroI8);
+nonzero_id!(NonZeroI16);
+nonzero_id!(NonZeroI32);
+nonzero_id!(NonZeroI64);
+nonzero_id!(NonZeroIsize);
+nonzero_id!(NonZeroU8);
+nonzero_id!(NonZeroU16);
+nonzero_id!(NonZeroU32);
+nonzero_id!(NonZeroU64);
+nonzero_id!(NonZeroUsize);
+
 macro_rules! primitive_id {
     ($target:ty, fits32 = false, signed = true) => {
         impl IntegerId for $target {
@@ -53,8 +66,8 @@ macro_rules! primitive_id {
                  * but if we first cast to a i32 it'd become 0xFFFF which would fit fine.                         
                  */
                 let full_value = *self;
-                if let Ok(value) = i32::try_from(full_value) {
-                    value as u32
+                if full_value >= (i32::min_value() as $target) && full_value <= (i32::max_value() as $target) {
+                    (full_value as i32) as u32
                 } else {
                     id_overflowed(full_value)
                 }
@@ -75,8 +88,8 @@ macro_rules! primitive_id {
             #[inline]
             fn id32(&self) -> u32 {
                 let full_value = *self;
-                if let Ok(value) = u32::try_from(full_value) {
-                    value
+                if full_value >= (u32::min_value() as $target) && full_value <= (u32::max_value() as $target) {
+                    full_value as u32
                 } else {
                     id_overflowed(full_value)
                 }
@@ -118,6 +131,8 @@ primitive_id!(u32, fits32 = true);
 primitive_id!(i32, fits32 = true);
 primitive_id!(u16, fits32 = true);
 primitive_id!(i16, fits32 = true);
+primitive_id!(u8, fits32 = true);
+primitive_id!(i8, fits32 = true);
 macro_rules! generic_deref_id {
     ($target:ident) => {
         impl<T: IntegerId> IntegerId for $target<T> {
