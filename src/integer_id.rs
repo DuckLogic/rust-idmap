@@ -33,11 +33,6 @@ macro_rules! nonzero_id {
         }
     }
 }
-nonzero_id!(NonZeroI8);
-nonzero_id!(NonZeroI16);
-nonzero_id!(NonZeroI32);
-nonzero_id!(NonZeroI64);
-nonzero_id!(NonZeroIsize);
 nonzero_id!(NonZeroU8);
 nonzero_id!(NonZeroU16);
 nonzero_id!(NonZeroU32);
