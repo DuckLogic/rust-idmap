@@ -50,7 +50,7 @@ pub trait IdTable: Debug + Clone {
 ///
 /// However, it can be safely wrapped in `SafeEntries` and `SafeEntriesMut` traits.
 pub unsafe trait EntryIterable<K, V> {
-    type Iter: Iterator<Item=(TableIndex, *const (K, V))>;
+    type Iter: Iterator<Item=(TableIndex, *const (K, V))> + Clone;
     unsafe fn unchecked_entries(&self) -> Self::Iter;
 }
 
@@ -90,6 +90,22 @@ impl<'a, K, V, I> iter::ExactSizeIterator for SafeEntries<'a, K, V, I>
 unsafe impl<'a, K, V, I> iter::TrustedLen for SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
+impl<'a, K, V, I> Clone for SafeEntries<'a, K, V, I> 
+    where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        SafeEntries {
+            unchecked_handle: self.unchecked_handle.clone(),
+            _marker: PhantomData
+        }
+    }
+}
+impl<'a, K: Debug, V: Debug, I> Debug for SafeEntries<'a, K, V, I>
+    where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.debug_list().entries(self.clone()).finish()
+    }
+}
 
 pub struct SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
@@ -521,6 +537,16 @@ impl<K: IntegerId, V> Iterator for UncheckedDenseEntryIter<K, V> {
 impl<K: IntegerId, V> iter::FusedIterator for UncheckedDenseEntryIter<K, V> {}
 impl<K: IntegerId, V> iter::ExactSizeIterator for UncheckedDenseEntryIter<K, V> {}
 unsafe impl<K: IntegerId, V> iter::TrustedLen for UncheckedDenseEntryIter<K, V> {}
+impl<K: IntegerId, V> Clone for UncheckedDenseEntryIter<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        UncheckedDenseEntryIter {
+            index: self.index,
+            ptr: self.ptr,
+            end: self.end
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct DirectEntryTable<K: IntegerId, V> {
@@ -773,3 +799,14 @@ impl<K: IntegerId, V> Iterator for UncheckedSparseEntryIter<K, V> {
 }
 impl<K: IntegerId, V> iter::FusedIterator for UncheckedSparseEntryIter<K, V> {}
 impl<K: IntegerId, V> iter::ExactSizeIterator for UncheckedSparseEntryIter<K, V> {}
+impl<K: IntegerId, V> Clone for UncheckedSparseEntryIter<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        UncheckedSparseEntryIter {
+            index: self.index,
+            count: self.count,
+            ptr: self.ptr,
+            end: self.end
+        }
+    }
+}

@@ -531,6 +531,22 @@ impl <'a, K, V, I> iter::ExactSizeIterator for Iter<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
 unsafe impl <'a, K, V, I> iter::TrustedLen for Iter<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
+impl<'a, K, V, I> Clone for Iter<'a, K, V, I>
+    where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Iter(self.0.clone())
+    }
+}
+impl<'a, K, V, I> Debug for Iter<'a, K, V, I>
+        where K: IntegerId + Debug + 'a, V: Debug + 'a, I: 'a + EntryIterable<K, V> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.debug_tuple("Iter")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 
 pub struct Keys<'a, K, V, I>(SafeEntries<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
@@ -552,7 +568,21 @@ impl <'a, K, V, I> iter::ExactSizeIterator for Keys<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
 unsafe impl <'a, K, V, I> iter::TrustedLen for Keys<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
-
+impl<'a, K, V, I> Clone for Keys<'a, K, V, I>
+    where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Keys(self.0.clone())
+    }
+}
+impl<'a, K, V, I> Debug for Keys<'a, K, V, I> 
+    where K: IntegerId + Debug + 'a, V: Debug + 'a, I: 'a + EntryIterable<K, V>{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.debug_tuple("Keys")
+            .field(&self.0)
+            .finish()
+    }
+}
 
 pub struct Values<'a, K, V, I>(SafeEntries<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
@@ -574,6 +604,21 @@ impl <'a, K, V, I> iter::ExactSizeIterator for Values<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
 unsafe impl <'a, K, V, I> iter::TrustedLen for Values<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
+impl<'a, K, V, I> Clone for Values<'a, K, V, I>
+    where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Values(self.0.clone())
+    }
+}
+impl<'a, K, V, I> Debug for Values<'a, K, V, I>
+    where K: IntegerId + Debug + 'a, V: Debug + 'a, I: 'a + EntryIterable<K, V> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.debug_tuple("Values")
+            .field(&self.0)
+            .finish()
+    }
+}
 
 pub struct ValuesMut<'a, K, V, I>(SafeEntriesMut<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
@@ -595,7 +640,6 @@ impl <'a, K, V, I> iter::ExactSizeIterator for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
 unsafe impl <'a, K, V, I> iter::TrustedLen for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
-
 
 pub struct IterMut<'a, K, V, I>(SafeEntriesMut<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
