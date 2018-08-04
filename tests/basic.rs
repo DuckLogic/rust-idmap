@@ -145,6 +145,7 @@ fn important_cities() -> IdMap<KnownState, &'static str> {
         California => "Los Angeles"
     }
 }
+
 #[derive(IntegerId, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 enum KnownState {
     Arizona,
@@ -190,7 +191,7 @@ impl KnownState {
 fn test_wrapper() {
     let data = idmap! {
         ExampleWrapper(32) => "abc",
-        ExampleWrapper(42) => "life"
+        ExampleWrapper(42) => "life",
     };
     assert_eq!(data[ExampleWrapper(32)], "abc");
     assert_eq!(data[ExampleWrapper(42)], "life");

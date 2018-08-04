@@ -137,9 +137,12 @@ fn test_retain() {
 /// List the biggest cities in each state except for `NewMexico` and `NorthDakota`,
 /// intentionally excluding them to provide a better test case.
 fn important_cities() -> DirectIdMap<KnownState, &'static str> {
-    IMPORTANT_STATES.iter()
-        .map(|&state| (state, state.city()))
-        .collect()
+    // NOTE: Intentionally out of declared order to try and mess things up
+    direct_idmap! {
+        Arizona => "Phoenix",
+        NewYork => "New York City",
+        California => "Los Angeles"
+    }
 }
 #[derive(IntegerId, Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Ord, PartialOrd, Eq)]
 enum KnownState {
@@ -184,9 +187,9 @@ impl KnownState {
 
 #[test]
 fn test_wrapper() {
-    let data = idmap! {
+    let data = direct_idmap! {
         ExampleWrapper(32) => "abc",
-        ExampleWrapper(42) => "life"
+        ExampleWrapper(42) => "life",
     };
     assert_eq!(data[ExampleWrapper(32)], "abc");
     assert_eq!(data[ExampleWrapper(42)], "life");
@@ -195,7 +198,7 @@ fn test_wrapper() {
 
 #[test]
 fn test_struct_wrapper() {
-    let data = idmap! {
+    let data = direct_idmap! {
         ExampleStructWrapper::new(32) => "abc",
         ExampleStructWrapper::new(42) => "life"
     };

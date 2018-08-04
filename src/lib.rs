@@ -268,6 +268,37 @@ macro_rules! idmap {
             result
         }
     };
+    ($($key:expr => $value:expr,)*) => (idmap!($($key => $value),*));
+}
+
+/// Creates an `DirectIdMap` from a list of key-value pairs
+/// 
+/// ## Example
+/// ````
+/// #[macro_use] extern crate idmap;
+/// # fn main() {
+/// let map = direct_idmap! {
+///     1 => "a",
+///     25 => "b"
+/// };
+/// assert_eq!(map[1], "a");
+/// assert_eq!(map[25], "b");
+/// assert_eq!(map.get(26), None);
+/// // 1 is the first key
+/// assert_eq!(map.keys().next(), Some(&1));
+/// # }
+/// ````
+#[macro_export]
+macro_rules! direct_idmap {
+    ($($key:expr => $value:expr),*) => {
+        {
+            let entries = vec![$(($key, $value)),*];
+            let mut result = $crate::IdMap::with_capacity_direct(entries.len());
+            result.extend(entries);
+            result
+        }
+    };
+    ($($key:expr => $value:expr,)*) => (direct_idmap!($($key => $value),*));
 }
 
 /// Creates an `IdSet` from a list of elements
