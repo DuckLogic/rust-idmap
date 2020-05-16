@@ -15,7 +15,6 @@ pub trait IntegerId: PartialEq + Debug {
 }
 macro_rules! nonzero_id {
     ($target:ident) => {
-        #[cfg(feature = "nonzero")] // Hidden behind a (default) feature flag for docs.rs
         impl IntegerId for $target {
             #[inline]
             fn from_id(id: u64) -> Self {

@@ -72,7 +72,8 @@ fn test_declaration_order() {
         .collect::<Vec<_>>();
     let declared_entries = actual_entries.iter()
         .cloned()
-        .sorted();
+        .sorted()
+        .collect_vec();
     assert_eq!(actual_entries, declared_entries);
     let reversed_map = actual_entries.iter().rev()
         .cloned()

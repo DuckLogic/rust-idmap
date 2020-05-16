@@ -6,7 +6,7 @@
 use std::marker::PhantomData;
 use std::{iter, slice, mem, vec};
 use std::fmt::{self, Debug, Formatter};
-use std::intrinsics;
+use std::ptr::NonNull;
 
 use super::IntegerId;
 
@@ -160,7 +160,7 @@ impl OrderedIdTable {
             self.table.reserve(index - len + 1);
         }
         let additional_elements = self.table.capacity() - len;
-        ::utils::fill_bytes(&mut self.table, additional_elements, !0);
+        crate::utils::fill_bytes(&mut self.table, additional_elements, !0);
         &mut self.table[index]
     }
 }
@@ -211,7 +211,7 @@ impl IdTable for OrderedIdTable {
 /// The marker index `TableIndex::INVALID` is used to indicate missing entries.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord)]
 pub struct TableIndex(u32);
-unsafe impl ::utils::ArbitraryBytes for TableIndex {}
+unsafe impl crate::utils::ArbitraryBytes for TableIndex {}
 impl TableIndex {
     /// The special marker index for a missing/invalid entry,
     /// which may be used by a table to indicate that an entry is missing.
@@ -341,7 +341,7 @@ pub trait EntryTable<K: IntegerId, V>: EntryIterable<K, V> + IntoIterator<Item=(
     fn retain<F>(&mut self, func: F) where F: FnMut(&K, &mut V) -> bool;
     fn clear(&mut self);
     fn reserve(&mut self, amount: usize);
-    fn raw_debug(&self) -> &Debug where K: Debug, V: Debug;
+    fn raw_debug(&self) -> &dyn Debug where K: Debug, V: Debug;
     fn max_id(&self) -> Option<u64>;
     fn cloned(&self) -> Self where K: Clone, V: Clone;
 }
@@ -466,8 +466,8 @@ impl<K: IntegerId, V, T: IdTable> EntryTable<K, V> for DenseEntryTable<K, V, T> 
         self.entries.reserve(amount);
     }
     #[inline]
-    fn raw_debug(&self) -> &Debug where K: Debug, V: Debug {
-        self as &Debug
+    fn raw_debug(&self) -> &dyn Debug where K: Debug, V: Debug {
+        self as &dyn Debug
     }
     fn max_id(&self) -> Option<u64> {
         /*
@@ -489,8 +489,8 @@ unsafe impl<K: IntegerId, V, T: IdTable> EntryIterable<K, V> for DenseEntryTable
         assert_ne!(mem::size_of::<(K, V)>(), 0, "Zero sized type!");
         UncheckedDenseEntryIter {
             index: TableIndex(0),
-            ptr: self.entries.as_ptr(),
-            end: self.entries.as_ptr().offset(self.entries.len() as isize)
+            ptr: NonNull::new_unchecked(self.entries.as_ptr() as *mut _),
+            end: NonNull::new_unchecked(self.entries.as_ptr().add(self.entries.len()) as *mut _)
         }
     }
 }
@@ -504,15 +504,15 @@ impl<K: IntegerId, V, T: IdTable> IntoIterator for DenseEntryTable<K, V, T> {
 }
 pub struct UncheckedDenseEntryIter<K: IntegerId, V> {
     index: TableIndex,
-    ptr: *const (K, V),
-    end: *const (K, V)
+    ptr: NonNull<(K, V)>,
+    end: NonNull<(K, V)>
 }
 impl<K: IntegerId, V> Iterator for UncheckedDenseEntryIter<K, V> {
     type Item = (TableIndex, *const (K, V));
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = ((self.end as usize) - (self.ptr as usize)) / mem::size_of::<(K, V)>();
+        let size = ((self.end.as_ptr() as usize) - (self.ptr.as_ptr() as usize)) / mem::size_of::<(K, V)>();
         (size, Some(size))
     }
     #[inline]
@@ -520,16 +520,15 @@ impl<K: IntegerId, V> Iterator for UncheckedDenseEntryIter<K, V> {
         assert_ne!(mem::size_of::<(K, V)>(), 0, "Zero sized type!");
         // Based on the slice iterator
         unsafe {
-            intrinsics::assume(!self.ptr.is_null());
-            intrinsics::assume(!self.end.is_null());
-            if self.ptr == self.end {
+            let ptr = self.ptr.as_ptr();
+            let end = self.end.as_ptr();
+            if ptr == end {
                 None
             } else {
                 let index = self.index;
-                let element = self.ptr;
                 self.index = TableIndex(index.0 + 1);
-                self.ptr = element.offset(1);
-                Some((index, element))
+                self.ptr = NonNull::new_unchecked(ptr.add(1));
+                Some((index, ptr))
             }
         }
     }
@@ -680,8 +679,8 @@ impl<K: IntegerId, V> EntryTable<K, V> for DirectEntryTable<K, V> {
         self.entries.reserve(amount);
     }
     #[inline]
-    fn raw_debug(&self) -> &Debug where K: Debug, V: Debug {
-        self as &Debug
+    fn raw_debug(&self) -> &dyn Debug where K: Debug, V: Debug {
+        self as &dyn Debug
     }
     #[inline]
     fn max_id(&self) -> Option<u64> {
@@ -710,8 +709,8 @@ unsafe impl<K: IntegerId, V> EntryIterable<K, V> for DirectEntryTable<K, V> {
         UncheckedSparseEntryIter {
             index: TableIndex(0),
             count: self.count,
-            ptr: self.entries.as_ptr(),
-            end: self.entries.as_ptr().offset(self.entries.len() as isize)
+            ptr: NonNull::new_unchecked(self.entries.as_ptr() as *mut _),
+            end: NonNull::new_unchecked(self.entries.as_ptr().add(self.entries.len()) as *mut _)
         }
     }
 }
@@ -765,8 +764,8 @@ pub struct UncheckedSparseEntryIter<K: IntegerId, V> {
     /// A buggy implementation there wouldn't break memory safety,
     /// although it could result in some weird bugs where an 'exact' iterator is wrong.
     count: usize,
-    ptr: *const Option<(K, V)>,
-    end: *const Option<(K, V)>
+    ptr: NonNull<Option<(K, V)>>,
+    end: NonNull<Option<(K, V)>>
 }
 impl<K: IntegerId, V> Iterator for UncheckedSparseEntryIter<K, V> {
     type Item = (TableIndex, *const (K, V));
@@ -781,13 +780,11 @@ impl<K: IntegerId, V> Iterator for UncheckedSparseEntryIter<K, V> {
         assert_ne!(mem::size_of::<(K, V)>(), 0, "Zero sized type!");
         // Based on the slice iterator
         unsafe {
-            intrinsics::assume(!self.ptr.is_null());
-            intrinsics::assume(!self.end.is_null());
-            while self.ptr != self.end {
+            while self.ptr.as_ptr() != self.end.as_ptr() {
                 let index = self.index;
-                let element = self.ptr;
+                let element = self.ptr.as_ptr();
                 self.index = TableIndex(index.0 + 1);
-                self.ptr = element.offset(1);
+                self.ptr = NonNull::new_unchecked(element.add(1));
                 if let Some(ref inner) = *element {
                     self.count -= 1;
                     return Some((index, inner))
