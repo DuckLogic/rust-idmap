@@ -1,29 +1,28 @@
 #![recursion_limit = "128"]
 extern crate proc_macro;
-extern crate syn;
-#[macro_use]
-extern crate quote;
 
-use proc_macro::TokenStream;
-use syn::{DeriveInput, Body, ConstExpr, Lit, VariantData};
+use quote::quote;
+
+use proc_macro2::TokenStream;
+use syn::{DeriveInput, Data, Lit, Expr, ExprLit, Fields};
+use quote::ToTokens;
 
 #[proc_macro_derive(IntegerId)]
-pub fn integer_id(input: TokenStream) -> TokenStream {
-    let text = input.to_string();
-    let ast = syn::parse_derive_input(&text).unwrap();
-    impl_integer_id(&ast).parse().unwrap()
+pub fn integer_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse(input).unwrap();
+    impl_integer_id(&ast).into()
 }
 
 // The compiler doesn't seem to know when variables are used in the macro
 #[allow(unused_variables)]
-fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
+fn impl_integer_id(ast: &DeriveInput) -> TokenStream {
     let name = &ast.ident;
-    match ast.body {
-        Body::Struct(ref data) => {
-            let fields = data.fields();
+    match ast.data {
+        Data::Struct(ref data) => {
+            let fields = &data.fields;
             match fields.len() {
                 1 => {
-                    let field = &fields[0];
+                    let field = fields.iter().next().unwrap();
                     /*
                      * NOTE: Delegating to the field's implementation allows efficient polymorphic overflow handling for all supported types.
                      * New types can be added to the library transparently, without changing the automatically derived implementation.
@@ -31,13 +30,13 @@ fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
                      * This should have zero overhead when inlining is enabled, since they're marked inline(always).
                      */
                     let field_type = &field.ty;
-                    let (constructor, field_name) = match *data {
-                        VariantData::Struct(_) => {
-                            let field_name = create_tokens(&field.ident);
+                    let (constructor, field_name) = match data.fields {
+                        Fields::Named(_) => {
+                            let field_name = field.ident.to_token_stream();
                             (quote!(#name { #field_name: value }), field_name)
                         },
-                        VariantData::Tuple(_) => (quote! { #name( value ) }, quote!(0)),
-                        VariantData::Unit => unreachable!()
+                        Fields::Unnamed(_) => (quote! { #name( value ) }, quote!(0)),
+                        Fields::Unit => unreachable!()
                     };
                     quote! {
                         impl ::idmap::IntegerId for #name {
@@ -61,18 +60,20 @@ fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
                 _ => panic!("`IntegerId` can only be applied to structs with a single field, but {} has {}", name, fields.len())
             }
         },
-        Body::Enum(ref variants) => {
+        Data::Enum(ref data) => {
             let mut idx = 0;
-            let variants: Vec<_> = variants.iter().map(|variant| {
+            let variants: Vec<_> = data.variants.iter().map(|variant| {
                 let ident = &variant.ident;
-                match variant.data {
-                    VariantData::Unit => (),
+                match variant.fields {
+                    Fields::Unit => (),
                     _ => {
                         panic!("`IntegerId` can be applied only to unitary enums, {}::{} is either struct or tuple", name, ident)
                     },
                 }
-                match variant.discriminant {
-                    Some(ConstExpr::Lit(Lit::Int(value, _))) => idx = value,
+                match &variant.discriminant {
+                    Some((_, Expr::Lit(ExprLit { lit: Lit::Int(value), .. }))) => {
+                        idx = value.base10_parse::<u64>().expect("Unable to parse discriminant");
+                    },
                     Some(_) => panic!("Can't handle discriminant for {}::{}", name, ident),
                     None => {}
                 }
@@ -99,12 +100,7 @@ fn impl_integer_id(ast: &DeriveInput) -> quote::Tokens {
                     }
                 }
             }
-        }
+        },
+        Data::Union(_) => panic!("Unions are unsupported!")
     }
-}
-#[inline]
-fn create_tokens<T: quote::ToTokens>(value: &T) -> quote::Tokens {
-    let mut result = quote::Tokens::new();
-    value.to_tokens(&mut result);
-    result
 }

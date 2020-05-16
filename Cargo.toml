@@ -1,6 +1,6 @@
 [package]
 name = "idmap"
-version = "0.2.17"
+version = "0.2.18"
 authors = ["Techcable <Techcable@techcable.net>"]
 description = "Efficient maps of integer id keys to values, backed by an underlying `Vec`"
 repository = "https://github.com/Techcable/rust-idmap"
@@ -22,7 +22,7 @@ serde_test = "^1.0.11"
 serde_derive = "^1.0.11"
 itertools = "^0.9"
 
-[dependencies.idmap-derive]
+[dev-dependencies.idmap-derive]
 path = "idmap-derive"
 version = "^0.1.1"
 
