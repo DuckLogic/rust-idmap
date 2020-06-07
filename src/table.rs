@@ -108,6 +108,7 @@ impl<'a, K, V, I> iter::FusedIterator for SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl<'a, K, V, I> iter::ExactSizeIterator for SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl<'a, K, V, I> iter::TrustedLen for SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
@@ -163,6 +164,7 @@ impl<'a, K, V, I> iter::FusedIterator for SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl<'a, K, V, I> iter::ExactSizeIterator for SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl<'a, K, V, I> iter::TrustedLen for SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
@@ -492,14 +494,32 @@ impl<K: IntegerId, V, T: IdTable> EntryTable<K, V> for DenseEntryTable<K, V, T> 
     #[inline]
     fn retain<F>(&mut self, mut func: F) where F: FnMut(&K, &mut V) -> bool {
         let mut changed = false;
-        self.entries.drain_filter(|&mut (ref key, ref mut value)| {
-            if !func(key, value) {
-                changed = true;
-                true
-            } else {
-                false
+        #[cfg(feature = "nightly")]
+        {
+            // On nightly, we can use efficient drain_filter
+            self.entries.drain_filter(|&mut (ref key, ref mut value)| {
+                if !func(key, value) {
+                    changed = true;
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+        #[cfg(not(feature = "nightly"))]
+        {
+            // On stable, fallback to requiring allocation
+            let mut retained = Vec::with_capacity(self.entries.len());
+            let old_entries = mem::replace(&mut self.entries, Vec::new());
+            for (key, mut value) in old_entries {
+                if !func(&key, &mut value) {
+                    changed = true;
+                } else {
+                    retained.push((key, value));
+                }
             }
-        });
+            self.entries = retained;
+        }
         if changed {
             self.correct_entries()
         }
@@ -585,6 +605,7 @@ impl<K: IntegerId, V> Iterator for UncheckedDenseEntryIter<K, V> {
 }
 impl<K: IntegerId, V> iter::FusedIterator for UncheckedDenseEntryIter<K, V> {}
 impl<K: IntegerId, V> iter::ExactSizeIterator for UncheckedDenseEntryIter<K, V> {}
+#[cfg(feature = "nightly")]
 unsafe impl<K: IntegerId, V> iter::TrustedLen for UncheckedDenseEntryIter<K, V> {}
 impl<K: IntegerId, V> Clone for UncheckedDenseEntryIter<K, V> {
     #[inline]

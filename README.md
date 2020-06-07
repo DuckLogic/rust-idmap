@@ -3,7 +3,9 @@ rust-idmap [![Crates.io](https://img.shields.io/crates/v/idmap.svg)](https://cra
 Efficient maps of integer id keys to values, backed by an underlying `Vec`.
 
 ## Features
-- Automiatically derived `IntegerId` for enums and newtype structs
+- Compiles on stable rust
+  - I only officially support the latest stable ;)
+- Automatically derived `IntegerId` for enums and newtype structs
   - Implemented in the `idmap-derive` proc_macro crate
 - Maintains insertion order of the entries, as there's an indirection like `OrderMap`.
   - Therefore, entries which aren't present take little space, as only a `u32` needs to be stored.

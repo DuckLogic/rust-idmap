@@ -3,7 +3,7 @@
 //! However, unless a `CompactIdMap` is used, space requirements are O(n) the largest key.
 //! Any type that implements `IntegerId` can be used for the key,
 //! but no storage is wasted if the key can be represented from the id.
-#![feature(trusted_len, drain_filter)]
+#![cfg_attr(feature = "nightly", feature(trusted_len, drain_filter))]
 #![deny(missing_docs)]
 #[cfg(feature="serde")]
 extern crate serde;
@@ -623,6 +623,7 @@ impl <'a, K, V, I> iter::FusedIterator for Iter<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl <'a, K, V, I> iter::ExactSizeIterator for Iter<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl <'a, K, V, I> iter::TrustedLen for Iter<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 impl<'a, K, V, I> Clone for Iter<'a, K, V, I>
@@ -660,6 +661,7 @@ impl <'a, K, V, I> iter::FusedIterator for Keys<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl <'a, K, V, I> iter::ExactSizeIterator for Keys<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl <'a, K, V, I> iter::TrustedLen for Keys<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 impl<'a, K, V, I> Clone for Keys<'a, K, V, I>
@@ -697,6 +699,7 @@ impl <'a, K, V, I> iter::FusedIterator for Values<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl <'a, K, V, I> iter::ExactSizeIterator for Values<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl <'a, K, V, I> iter::TrustedLen for Values<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 impl<'a, K, V, I> Clone for Values<'a, K, V, I>
@@ -734,6 +737,7 @@ impl <'a, K, V, I> iter::FusedIterator for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl <'a, K, V, I> iter::ExactSizeIterator for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl <'a, K, V, I> iter::TrustedLen for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
@@ -756,6 +760,7 @@ impl <'a, K, V, I> iter::FusedIterator for IterMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::FusedIterator {}
 impl <'a, K, V, I> iter::ExactSizeIterator for IterMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::ExactSizeIterator {}
+#[cfg(feature = "nightly")]
 unsafe impl <'a, K, V, I> iter::TrustedLen for IterMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 

@@ -28,9 +28,8 @@ version = "^0.1.1"
 
 [features]
 default = []
+nightly = []
 
 [package.metadata.docs.rs]
 features = ["serde", "petgraph"]
-# We need to disable support for NonZero since their nightly does't support it
-no-default-features = true
 
