@@ -1,8 +1,10 @@
 //! Efficient maps of integer id keys to values, backed by an underlying `Vec`.
+//!
 //! However, unless a `CompactIdMap` is used, space requirements are O(n) the largest key.
 //! Any type that implements `IntegerId` can be used for the key,
 //! but no storage is wasted if the key can be represented from the id.
 #![feature(trusted_len, drain_filter)]
+#![deny(missing_docs)]
 #[cfg(feature="serde")]
 extern crate serde;
 #[cfg(feature = "petgraph")]
@@ -14,6 +16,7 @@ use std::iter::{self, FromIterator};
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 use std::fmt::{self, Debug, Formatter};
+
 
 pub mod set;
 pub mod table;
@@ -59,10 +62,10 @@ pub type OrderedIdMap<K, V> = IdMap<K, V, DenseEntryTable<K, V>>;
 /// A map of mostly-contiguous `IntegerId` keys to values, backed by a `Vec`.
 ///
 /// This is parametric over the type of the underlying `EntryTable`, which controls its behavior
-/// By default it's equivelant to an `OrderedIdMap`,
+/// By default it's equivalent to an `OrderedIdMap`,
 /// though you can explicitly request a `DirectIdMap` instead.
 ///
-/// From the user's presepctive, this is equivelant to a nice wrapper around a `Vec<Option<(K, V)>>`,
+/// From the user's perspective, this is equivalent to a nice wrapper around a `Vec<Option<(K, V)>>`,
 /// that preserves insertion order and saves some space for missing keys.
 /// More details on the possible internal representations
 /// are documented in the `OrderedIdMap` and `DirectIdMap` aliases.
@@ -71,10 +74,17 @@ pub struct IdMap<K: IntegerId, V, T: EntryTable<K, V> = DenseEntryTable<K, V>> {
     marker: PhantomData<DirectEntryTable<K, V>>
 }
 impl<K: IntegerId, V> IdMap<K, V, DirectEntryTable<K, V>> {
+    /// Create a new direct IdMap.
+    ///
+    /// This stores its entries directly in a Vector
     #[inline]
     pub fn new_direct() -> Self {
         IdMap::new_other()
     }
+    /// Create new direct IdMap, initialized with the specified capacity
+    ///
+    /// Because a direct id map stores its values directly,
+    /// the capacity hints at the maximum id and not the length
     #[inline]
     pub fn with_capacity_direct(capacity: usize) -> Self {
         IdMap::with_capacity_other(capacity)
@@ -115,40 +125,63 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
             marker: PhantomData
         }
     }
+    /// If this map is empty
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+    /// The length of this map
+    ///
+    /// This doesn't necessarily equal the maximum integer id
     #[inline]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+    /// The maximum id of all the elements in this map
+    #[inline]
     pub fn max_id(&self) -> Option<u64>  {
         self.entries.max_id()
     }
+    /// If this map contains the specified key
     #[inline]
     pub fn contains_key<Q: Borrow<K>>(&self, key: Q) -> bool {
         self.get(key).is_some()
     }
+    /// Retrieve the value associated with the specified key,
+    /// or `None` if the value is not present
+    ///
+    /// Keys that implement `IntegerId` are expected to be cheap,
+    /// so we don't borrow the key.
     #[inline]
     pub fn get<Q: Borrow<K>>(&self, key: Q) -> Option<&V> {
         let key = key.borrow();
         self.entries.get(key)
     }
+    /// Retrieve a mutable reference to the value associated with the specified key,
+    /// or `None` if the value is not present
     #[inline]
     pub fn get_mut<Q: Borrow<K>>(&mut self, key: Q) -> Option<&mut V> {
         let key = key.borrow();
         self.entries.get_mut(key)
     }
+    /// Insert the specified value, associating it with a key
+    ///
+    /// Returns the value previously associated with they key,
+    /// or `None` if there wasn't any
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.entries.insert(key, value)
     }
+    /// Remove the value associated with the specified key,
+    /// or `None` if there isn't any
     #[inline]
     pub fn remove<Q: Borrow<K>>(&mut self, key: Q) -> Option<V> {
         let key = key.borrow();
         self.entries.swap_remove(key)
     }
+    /// Retrieve the entry associated with the specified key
+    ///
+    /// Mimics the HashMap entry aPI
     #[inline]
     pub fn entry(&mut self, key: K) -> Entry<K, V, T> {
         if self.entries.get(&key).is_some() {
@@ -159,26 +192,36 @@ impl<K: IntegerId, V, T: EntryTable<K, V>> IdMap<K, V, T> {
             Entry::Vacant(VacantEntry { key, map: self })
         }
     }
+    /// Iterate over all the keys and values in this map
     #[inline]
     pub fn iter(&self) -> Iter<K, V, T> {
         Iter(SafeEntries::new(&self.entries))
     }
+    /// Iterate over all the entries in this map,
+    /// giving mutable references to the keys
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<K, V, T> {
         IterMut(SafeEntriesMut::new(&mut self.entries))
     }
+    /// Iterate over all the keys in the map
     #[inline]
     pub fn keys(&self) -> Keys<K, V, T> {
         Keys(SafeEntries::new(&self.entries))
     }
+    /// Iterate over all the values in the map
     #[inline]
     pub fn values(&self) -> Values<K, V, T> {
         Values(SafeEntries::new(&self.entries))
     }
+    /// Iterate over mutable references to all the values in the map
     #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<K, V, T> {
         ValuesMut(SafeEntriesMut::new(&mut self.entries))
     }
+    /// Clear all the entries the map
+    ///
+    /// Like [Vec::clear] this should retain the underlying memory
+    /// for future use.
     #[inline]
     pub fn clear(&mut self) {
         self.entries.clear();
@@ -374,15 +417,22 @@ impl<K: IntegerId, V: Debug, T: EntryTable<K, V>> Debug for IdMap<K, V, T> {
         d.finish()
     }
 }
+/// An entry in an [IdMap]
 pub enum Entry<'a, K: IntegerId + 'a, V: 'a, T: 'a + EntryTable<K, V>> {
+    /// An entry whose value is present
     Occupied(OccupiedEntry<'a, K, V, T>),
+    /// An entry whose value is missing
     Vacant(VacantEntry<'a, K, V, T>)
 }
 impl<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V>> Entry<'a, K, V, T> {
+    /// Return a reference to this entry's value,
+    /// initializing it with the specified value if its missing
     #[inline]
     pub fn or_insert(self, value: V) -> &'a mut V {
         self.or_insert_with(|| value)
     }
+    /// Return a reference to this entry's value,
+    /// using the closure to initialize it if its missing
     #[inline]
     pub fn or_insert_with<F>(self, func: F) -> &'a mut V where F: FnOnce() -> V {
         match self {
@@ -391,45 +441,58 @@ impl<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V>> Entry<'a, K, V, T> {
         }
     }
 }
+/// An entry in an [IdMap] where the value is present
 pub struct OccupiedEntry<'a, K: IntegerId + 'a, V: 'a, T: 'a + EntryTable<K, V>> {
     map: &'a mut IdMap<K, V, T>,
     key: K,
 }
 impl<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V>> OccupiedEntry<'a, K, V, T> {
+    /// The key associated with the entry
     #[inline]
     pub fn key(&self) -> &K {
         &self.key
     }
+    /// Consume the entry, giving a mutable reference to the value
+    /// which is bound to the (mutable) lifetime of the map.
     #[inline]
     pub fn value(self) -> &'a mut V {
         self.map.entries.get_mut(&self.key).unwrap()
     }
+    /// Get a reference to the value
     #[inline]
     pub fn get(&self) -> &V {
         self.map.entries.get(&self.key).unwrap()
     }
+    /// Borrow a mutable reference to the value
     #[inline]
     pub fn get_mut(&mut self) -> &mut V {
         self.map.entries.get_mut(&self.key).unwrap()
     }
+    /// Replace the value in the map, returning its old value
     #[inline]
     pub fn insert(self, value: V) -> V {
         self.map.entries.insert(self.key, value).unwrap()
     }
+    /// Remove the value from the map, consuming this entry
     #[inline]
     pub fn remove(self) -> V {
         self.map.entries.swap_remove(&self.key).unwrap()
     }
 }
+/// An entry in an [IdMap] where the value is *not* present
 pub struct VacantEntry<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V> + 'a> {
     map: &'a mut IdMap<K, V, T>,
     key: K,
 }
 impl<'a, K: IntegerId + 'a, V: 'a, T: EntryTable<K, V> + 'a> VacantEntry<'a, K, V, T> {
+    /// Insert a value into this vacant slot,
+    /// giving a reference to the new value
     #[inline]
     pub fn insert(self, value: V) -> &'a mut V {
         self.map.entries.insert_vacant(self.key, value)
     }
+    /// Call the specified closure to compute a value to insert,
+    /// then proceed by calling [VacantEntry::insert]
     #[inline]
     pub fn or_insert_with<F>(self, func: F) -> &'a mut V where F: FnOnce() -> V {
         self.insert(func())
@@ -541,6 +604,7 @@ delegating_iter!(ValuesMut, SafeEntriesMut, 'a, K, V, [ &'a mut V ], |handle| ha
  * but I've expanded them ahead of time in order to allow intellij's autocomplete to understand it.
  */
 
+/// An iterator over the entries in a map
 pub struct Iter<'a, K, V, I>(SafeEntries<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
 impl <'a, K, V, I> Iterator for Iter<'a, K, V, I>
@@ -577,7 +641,7 @@ impl<'a, K, V, I> Debug for Iter<'a, K, V, I>
     }
 }
 
-
+/// An iterator over the keys in a map
 pub struct Keys<'a, K, V, I>(SafeEntries<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
 impl <'a, K, V, I> Iterator for Keys<'a, K, V, I>
@@ -614,6 +678,7 @@ impl<'a, K, V, I> Debug for Keys<'a, K, V, I>
     }
 }
 
+/// An iterator over the values in a map
 pub struct Values<'a, K, V, I>(SafeEntries<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
 impl <'a, K, V, I> Iterator for Values<'a, K, V, I>
@@ -650,6 +715,7 @@ impl<'a, K, V, I> Debug for Values<'a, K, V, I>
     }
 }
 
+/// An iterator over mutable references to the values in a map
 pub struct ValuesMut<'a, K, V, I>(SafeEntriesMut<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
 impl <'a, K, V, I> Iterator for ValuesMut<'a, K, V, I>
@@ -671,6 +737,7 @@ impl <'a, K, V, I> iter::ExactSizeIterator for ValuesMut<'a, K, V, I>
 unsafe impl <'a, K, V, I> iter::TrustedLen for ValuesMut<'a, K, V, I>
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
+/// An iterator over the entries in a map, giving mutable references to the values
 pub struct IterMut<'a, K, V, I>(SafeEntriesMut<'a, K, V, I>) 
     where K: IntegerId + 'a, V: 'a, I: 'a + EntryIterable<K, V>;
 impl <'a, K, V, I> Iterator for IterMut<'a, K, V, I>

@@ -1,3 +1,6 @@
+//! Implements an `IdSet` using a bitset
+//!
+//! IdSets are to HashSets as IdMaps are to HashMaps
 use std::iter;
 use std::marker::PhantomData;
 use std::ops::{Index};
@@ -10,6 +13,11 @@ use fixedbitset::{Ones, FixedBitSet};
 
 use super::IntegerId;
 
+/// A set, whose implement [IntegerId]
+///
+/// This is implemented directly as a bitset,
+/// so it may not be appropriate if you know you'll have large ids
+/// but few entries.
 #[derive(Clone)]
 pub struct IdSet<T: IntegerId> {
     handle: FixedBitSet,
@@ -17,10 +25,15 @@ pub struct IdSet<T: IntegerId> {
     marker: PhantomData<T>
 }
 impl<T: IntegerId> IdSet<T> {
+    /// Create a new [IdSet]
     #[inline]
     pub fn new() -> IdSet<T> {
         IdSet::with_capacity(0)
     }
+    /// Initialize the set with the given capacity
+    ///
+    /// Since the underlying storage is a simple bitset,
+    /// this hints at the maximum capacity and not the length
     #[inline]
     pub fn with_capacity(indexes: usize) -> IdSet<T> {
         IdSet {
@@ -73,6 +86,7 @@ impl<T: IntegerId> IdSet<T> {
         let value = value.borrow();
         self.handle.contains(value.id() as usize)
     }
+    /// Iterate over the values in this set
     #[inline]
     pub fn iter(&self) -> Iter<T> {
         Iter {
@@ -81,19 +95,27 @@ impl<T: IntegerId> IdSet<T> {
             marker: PhantomData
         }
     }
+    /// Clear the values in this set
     #[inline]
     pub fn clear(&mut self) {
         self.handle.clear();
         self.len = 0;
     }
+    /// The number of entries in this set
+    ///
+    /// An [IdSet] internally tracks this length, so this is a `O(1)` operation
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
+    /// If this set is empty
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+    /// Retain values in the set if the specified closure returns true
+    ///
+    /// Otherwise they are removed
     pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut func: F) {
         let mut removed = 0;
         for (word_index, word) in self.handle.as_mut_slice().iter_mut().enumerate() {
@@ -227,6 +249,7 @@ impl<T: IntegerId + Ord> Ord for IdSet<T> {
     }
 }
 
+/// An iterator over the values in an [IdSet]
 pub struct Iter<'a, T: IntegerId + 'a> {
     len: usize,
     handle: Ones<'a>,

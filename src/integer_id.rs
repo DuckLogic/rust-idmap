@@ -2,9 +2,17 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::fmt::{Debug, Display};
 use std::num::*;
+use std::convert::TryFrom;
 
 /// A type that can be uniquely identified by a 64 bit integer id
 pub trait IntegerId: PartialEq + Debug {
+    /// Recreate this key based on its associated integer id  
+    ///
+    /// This must be consistent with [IntegerId::id]
+    ///
+    /// This should assume no overflow in release mode
+    /// (unless that would be unsafe). However in debug mode builds
+    /// this should check for overflow.
     fn from_id(id: u64) -> Self;
     /// Return the unique id of this value.
     /// If two values are equal, they _must_ have the same id,
@@ -41,12 +49,15 @@ nonzero_id!(NonZeroUsize);
 macro_rules! primitive_id {
     ($target:ty, fits32 = false, signed = true) => {
         impl IntegerId for $target {
-            #[inline(always)]
+            #[inline]
             fn from_id(id: u64) -> Self {
+                if cfg!(debug_assertions) && <$target>::try_from(id).is_err() {
+                    debug_assert!(id as $target >= 0, "Negative id: {}", id as $target);
+                    panic!("Id overflowed a {}: {}", stringify!($target), id);
+                }
                 id as $target
             }
             #[inline(always)]
-            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
@@ -70,12 +81,17 @@ macro_rules! primitive_id {
     };
     ($target:ty, fits32 = false, signed = false) => {
         impl IntegerId for $target {
-            #[inline(always)]
+            #[inline]
             fn from_id(id: u64) -> Self {
+                debug_assert!(
+                    <$target>::try_from(id).is_ok(),
+                    "Id overflows {}: {}",
+                    stringify!($target),
+                    id
+                );
                 id as $target
             }
             #[inline(always)]
-            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
@@ -92,18 +108,22 @@ macro_rules! primitive_id {
     };
     ($target:ty, fits32 = true) => {
         impl IntegerId for $target {
-            #[inline(always)]
+            #[inline]
             fn from_id(id: u64) -> Self {
-                // TODO: Should we have a debug_assert! to check the cast?
+                #[allow(unused_comparisons)] // NOTE: This is redundant for unsigned types
+                {
+                    debug_assert!(
+                        (id as $target) >= 0,
+                        "Negative id: {}", id as $target
+                    );
+                }
                 id as $target
             }
             #[inline(always)]
-            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id(&self) -> u64 {
                 *self as u64
             }
             #[inline(always)]
-            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn id32(&self) -> u32 {
                 *self as u32
             }
@@ -112,9 +132,8 @@ macro_rules! primitive_id {
 }
 
 /// Support function that panics if an id overflows a u32
-#[cfg_attr(feature="cargo-clippy", allow(needless_pass_by_value))] // It's more efficient
 #[cold] #[inline(never)]
-fn id_overflowed<T: Display>(id: T) -> ! {
+fn id_overflowed(id: impl Display) -> ! {
     panic!("ID overflowed a u32: {}", id);
 }
 primitive_id!(u64, fits32 = false, signed = false);

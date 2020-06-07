@@ -10,7 +10,7 @@ pub fn fill_bytes<T: ArbitraryBytes>(target: &mut Vec<T>, amount: usize, value: 
         let len = target.len();
         target.reserve(amount);
         unsafe {
-            let ptr = target.as_mut_ptr().offset(len as isize);
+            let ptr = target.as_mut_ptr().add(len);
             ptr::write_bytes(ptr, value, amount);
             target.set_len(len + amount);
         }

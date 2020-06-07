@@ -1,8 +1,9 @@
 //! The internal table types that can be used to power an `IdMap`.
 //!
+//! The underlying tables for an [IdMap]
+//!
 //! User code shouldn't directly interact with these types,
 //! unless they're actually using an `IdMap`.
-#![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
 use std::marker::PhantomData;
 use std::{iter, slice, mem, vec};
 use std::fmt::{self, Debug, Formatter};
@@ -16,10 +17,12 @@ use super::IntegerId;
 /// Currently the only implementation is `OrderedIdTable`,
 /// which preserves ordering by using a `Vec`
 ///
-/// `DenseEntryTable`s need a seperate `IdTable` since entries will be stored densely,
+/// `DenseEntryTable`s need a separate `IdTable` since entries will be stored densely,
 /// though a `DirectEntryTable` doesn't need one at all.
 pub trait IdTable: Debug + Clone {
+    /// Create a new table
     fn new() -> Self;
+    /// Create a table, initialized with the specified capacity
     fn with_capacity(capacity: usize) -> Self;
     /// Determine the index of the specified key, which may or may not be valid.
     ///
@@ -31,14 +34,20 @@ pub trait IdTable: Debug + Clone {
     ///
     /// The `TableIndex::INVALID` index is special case and should never be considered valid
     /// under any circumstances.
-    /// It is logically equivelant to a `None` result, but kept for performance reasons.
+    /// It is logically equivalent to a `None` result, but kept for performance reasons.
     fn get(&self, key_index: TableIndex) -> Option<TableIndex>;
+    /// Get a mutable reference to the index of the specified key
+    ///
+    /// See also [IdTable::get]
     fn create_mut(&mut self, key_index: TableIndex) -> &mut TableIndex;
+    /// Directly set the value of the specified key
     fn set_raw(&mut self, key_index: TableIndex, value: TableIndex);
+    /// Clear table
     fn clear(&mut self);
+    /// Reserve room in the table for more keys
     fn reserve(&mut self, amount: usize);
 }
-/// Allows iteration over pointers to all a table's valid entries.
+/// Allows iteration over pointers to all a [IdTable]'s valid entries.
 ///
 /// This trait is completely unsafe and has to use raw pointers,
 /// since there's currently no way for a trait to express that the iterators
@@ -49,11 +58,22 @@ pub trait IdTable: Debug + Clone {
 /// so it's recommended to use the safe wrappers `SafeEntries` and `SafeEntriesMut`
 ///
 /// However, it can be safely wrapped in `SafeEntries` and `SafeEntriesMut` traits.
+///
+/// ## Safety
+/// The return pointers must be correctly associated with the table
+/// for the safe wrappers to yield the correct lifetimes
 pub unsafe trait EntryIterable<K, V> {
+    /// The type that iterates over this table's pointers
     type Iter: Iterator<Item=(TableIndex, *const (K, V))> + Clone;
+    /// Iterate over raw pointers in this table
+    ///
+    /// ## Safety
+    /// The returned pointers must never be used past the lifetime
+    /// for which they are actually valid
     unsafe fn unchecked_entries(&self) -> Self::Iter;
 }
 
+/// Safely iterates over the entries in a table
 pub struct SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
     unchecked_handle: I::Iter,
@@ -62,6 +82,7 @@ pub struct SafeEntries<'a, K, V, I>
 }
 impl<'a, K, V, I> SafeEntries<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
+    /// Safely iterate over the entries in the specified table
     #[inline]
     pub fn new(iterable: &'a I) -> Self {
         unsafe {
@@ -107,6 +128,7 @@ impl<'a, K: Debug, V: Debug, I> Debug for SafeEntries<'a, K, V, I>
     }
 }
 
+/// Safely iterates over the mutable entries in a table
 pub struct SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
     unchecked_handle: I::Iter,
@@ -116,6 +138,7 @@ pub struct SafeEntriesMut<'a, K, V, I>
 impl<'a, K, V, I> SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V> {
     #[inline]
+    /// Safely iterate over the mutable entries in the specified [EntryIterable]
     pub fn new(iterable: &'a mut I) -> Self {
         unsafe {
             SafeEntriesMut {
@@ -143,6 +166,7 @@ impl<'a, K, V, I> iter::ExactSizeIterator for SafeEntriesMut<'a, K, V, I>
 unsafe impl<'a, K, V, I> iter::TrustedLen for SafeEntriesMut<'a, K, V, I>
     where K: 'a, V: 'a, I: 'a + EntryIterable<K, V>, I: iter::TrustedLen {}
 
+/// An [IdTable] which preserves the ordering of its keys
 #[derive(Debug, Clone)]
 pub struct OrderedIdTable {
     table: Vec<TableIndex>,
@@ -220,6 +244,7 @@ impl TableIndex {
     /// as it can often be internally folded into a bounds check
     /// which would otherwise need a seperate check.
     pub const INVALID: TableIndex = TableIndex(u32::max_value());
+    /// Create a table index corresponding to the specified key
     #[inline]
     pub fn from_key<T: IntegerId>(key: &T) -> Self {
         let id = key.id();
@@ -230,6 +255,7 @@ impl TableIndex {
             id_overflow(key)
         }
     }
+    /// Create a table index from the specified value
     #[inline]
     pub fn from_index(index: usize) -> Self {
         assert!(index < (u32::max_value() as usize), "Invalid index: {}", index);
@@ -253,7 +279,8 @@ impl TableIndex {
         debug_assert!(self.is_valid());
         self.0
     }
-
+    /// Add the specified value to this index,
+    /// panicking on overflow
     #[inline]
     pub fn offset(self, amount: u32) -> Self {
         if self.0 < (u32::max_value() - amount) {
@@ -298,6 +325,7 @@ fn id_overflow<T: IntegerId>(key: &T) -> ! {
 }
 
 
+/// Iterate over all the valid ids in a table
 pub struct IterValidIds<'a>(slice::Iter<'a, TableIndex>);
 impl<'a> Iterator for IterValidIds<'a> {
     type Item = TableIndex;
@@ -319,32 +347,52 @@ impl<'a> Iterator for IterValidIds<'a> {
 /// Stores an `IdMap`'s actual entries, which controls the actual behavior of the map.
 ///
 /// There are currently two primary implementations:
-/// - `DenseEntryTable` stores the entries more mompactly and preserves insertion order,
-///   but it needs a seperate `IdTable` to map the keys to indexes in the entry list.
+/// - `DenseEntryTable` stores the entries more compactly and preserves insertion order,
+///   but it needs a separate `IdTable` to map the keys to indexes in the entry list.
 /// - `DirectEntryTable` doesn't need any extra `IdTable` book-keeping or indirection in order
 ///   to associate keys with entries, though it can't preserve ordering and wastes more space
 ///   when keys are missing. For these reasons, it's not the default though it can be used as an
 ///   optimization when you know that the key indexes of the entries will be densely packed.
 pub trait EntryTable<K: IntegerId, V>: EntryIterable<K, V> + IntoIterator<Item=(K, V)> {
+    /// Create a new table
     fn new() -> Self;
+    /// Create a new table, initialized to the specified capacity
     fn with_capacity(capacity: usize) -> Self;
+    /// If this table is empty
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    /// The number of entries in the table
     fn len(&self) -> usize;
+    /// Get the entry corresponding to the specified key
     fn get(&self, key: &K) -> Option<&V>;
+    /// Get a mutable reference to the entry corresponding to the specified key
     fn get_mut(&mut self, key: &K) -> Option<&mut V>;
+    /// Insert a value and associate it with the specified key,
+    /// returning the previous value
     fn insert(&mut self, key: K, value: V) -> Option<V>;
+    /// Insert a value into a vacant slot, returning a reference to the new value
     fn insert_vacant(&mut self, key: K, value: V) -> &mut V;
+    /// Remove the value associated with the specified key.
+    ///
+    /// This potentially disrupts internal ordering
     fn swap_remove(&mut self, key: &K) -> Option<V>;
     /// Retain the specified entries in the map, returning if any indexes changed
     fn retain<F>(&mut self, func: F) where F: FnMut(&K, &mut V) -> bool;
+    /// Clear the table
     fn clear(&mut self);
+    /// Reserve room for more entries
     fn reserve(&mut self, amount: usize);
+    /// Give a value that will debug the table
     fn raw_debug(&self) -> &dyn Debug where K: Debug, V: Debug;
+    /// Get the maximum id of the table
     fn max_id(&self) -> Option<u64>;
+    /// Clone the table
     fn cloned(&self) -> Self where K: Clone, V: Clone;
 }
+/// A table which densely stores its entries
+///
+/// This saves memory over a direct table when the entries are sparse
 #[derive(Debug, Clone)]
 pub struct DenseEntryTable<K: IntegerId, V, T: IdTable = OrderedIdTable> {
     entries: Vec<(K, V)>,
@@ -502,6 +550,8 @@ impl<K: IntegerId, V, T: IdTable> IntoIterator for DenseEntryTable<K, V, T> {
         self.entries.into_iter()
     }
 }
+/// An unchecked iterator over the pointers in a dense table
+#[doc(hidden)]
 pub struct UncheckedDenseEntryIter<K: IntegerId, V> {
     index: TableIndex,
     ptr: NonNull<(K, V)>,
@@ -547,6 +597,10 @@ impl<K: IntegerId, V> Clone for UncheckedDenseEntryIter<K, V> {
     }
 }
 
+/// A entry table that stores in a flat array
+///
+/// This has very fast `O(1)` access but can waste memory
+/// if the entries are sparse
 #[derive(Debug, Clone)]
 pub struct DirectEntryTable<K: IntegerId, V> {
     entries: Vec<Option<(K, V)>>,
@@ -646,7 +700,7 @@ impl<K: IntegerId, V> EntryTable<K, V> for DirectEntryTable<K, V> {
         // We have very little to do compared to a `DenseEntryTable`
         let index = key.id32() as usize;
         if let Some(existing) = self.entries.get_mut(index) {
-            if let Some((_, old)) = mem::replace(existing, None) {
+            if let Some((_, old)) = existing.take() {
                 self.count -= 1;
                 return Some(old)
             }
@@ -722,6 +776,8 @@ impl<K: IntegerId, V> IntoIterator for DirectEntryTable<K, V> {
         SparseEntryIntoIter(self.entries.into_iter())
     }
 }
+/// Wraps [std::vec::IntoIter], filtering out missing entries
+#[doc(hidden)]
 pub struct SparseEntryIntoIter<K, V>(vec::IntoIter<Option<(K, V)>>);
 impl<K: IntegerId, V> Iterator for SparseEntryIntoIter<K, V> {
     type Item = (K, V);
@@ -752,6 +808,9 @@ impl<K: IntegerId, V> iter::DoubleEndedIterator for SparseEntryIntoIter<K, V> {
         }
     }
 }
+
+/// Iterates over the entries in a direct table, filtering out missing entries
+#[doc(hidden)]
 pub struct UncheckedSparseEntryIter<K: IntegerId, V> {
     index: TableIndex,
     /// How many elements the `SparseEntryTable` claims are actually present.
