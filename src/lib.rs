@@ -20,6 +20,8 @@ use std::fmt::{self, Debug, Formatter};
 
 pub mod set;
 pub mod table;
+pub mod direct;
+pub mod ordered;
 #[cfg(feature="serde")]
 mod serialization;
 #[cfg(feature="petgraph")]
@@ -34,30 +36,9 @@ use table::{
     SafeEntries, SafeEntriesMut, DirectEntryTable
 };
 
-/// An `IdMap` that stores its entries without any indirection,
-/// but takes much more space when entries are missing.
-///
-/// Although this map has slightly less space overhead when most of the entries are present,
-/// it has much more space overhead when many entries are missing.
-/// Additionally, it's unable to preserve insertion order and the entries are always in declaration order.
-/// Iteration is based on the ids of the `IntegerId` keys,
-/// and is slower than an `OrderedIdMap` since missing entries have to be manually skipped.
-pub type DirectIdMap<K, V> = IdMap<K, V, DirectEntryTable<K, V>>;
+pub use self::direct::DirectIdMap;
 
-/// The default `IdMap` that preserves insertion order
-/// and requires little space when keys have missing entries.
-///
-/// This is the default way that `IdMap` behaves and is recommended for most users,
-/// unless you're really sure that you want a `DirectIdMap`.
-///
-/// Insertion order is maintained by having an indirection into an entry array like in `OrderMap`.
-/// Essentially, it's a `{ table: Vec<u32>, entries: Vec<(K, V) }`,
-/// which has little overhead for missing entries.
-/// However the indirection makes access slightly slower than a `DirectIdMap`,
-/// and requires slightly more overhead than a `DirectIdMap` when entries are actually present.
-/// If you aren't worried about the overhead for missing entries, and you want to avoid the indirection
-/// you could use a `DirectIdMap` instead.
-pub type OrderedIdMap<K, V> = IdMap<K, V, DenseEntryTable<K, V>>;
+pub use self::ordered::OrderedIdMap;
 
 /// A map of mostly-contiguous `IntegerId` keys to values, backed by a `Vec`.
 ///

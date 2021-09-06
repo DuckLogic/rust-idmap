@@ -337,7 +337,7 @@ impl<'a> Iterator for IterValidIds<'a> {
     }
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(&index) = self.0.next() {
+        for &index in &mut self.0 {
             if index.is_valid() {
                 return Some(index);
             }
@@ -510,7 +510,7 @@ impl<K: IntegerId, V, T: IdTable> EntryTable<K, V> for DenseEntryTable<K, V, T> 
         {
             // On stable, fallback to requiring allocation
             let mut retained = Vec::with_capacity(self.entries.len());
-            let old_entries = mem::replace(&mut self.entries, Vec::new());
+            let old_entries = mem::take(&mut self.entries);
             for (key, mut value) in old_entries {
                 if !func(&key, &mut value) {
                     changed = true;
